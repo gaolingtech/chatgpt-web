@@ -1,5 +1,5 @@
-import { h } from 'vue'
-import { SvgIcon } from '@/components/common'
+import {SvgIcon} from '@/components/common'
+import {h} from 'vue'
 
 export const useIconRender = () => {
   interface IconConfig {
@@ -18,14 +18,17 @@ export const useIconRender = () => {
 
     const style: IconStyle = {}
 
-    if (color)
+    if (color) {
       style.color = color
+    }
 
-    if (fontSize)
+    if (fontSize) {
       style.fontSize = `${fontSize}px`
+    }
 
-    if (!icon)
+    if (!icon) {
       window.console.warn('iconRender: icon is required')
+    }
 
     return () => h(SvgIcon, { icon, style })
   }

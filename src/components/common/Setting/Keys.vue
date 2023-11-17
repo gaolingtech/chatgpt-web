@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { h, onMounted, reactive, ref } from 'vue'
-import { NButton, NDataTable, NInput, NModal, NSelect, NSpace, NSwitch, NTag, useDialog, useMessage } from 'naive-ui'
-import type { CHATMODEL } from './model'
-import { KeyConfig, Status, UserRole, apiModelOptions, userRoleOptions } from './model'
-import { fetchGetKeys, fetchUpdateApiKeyStatus, fetchUpsertApiKey } from '@/api'
-import { t } from '@/locales'
-import { useAuthStore } from '@/store'
-import { useBasicLayout } from '@/hooks/useBasicLayout'
+import {fetchGetKeys, fetchUpdateApiKeyStatus, fetchUpsertApiKey} from '@/api'
+import {useBasicLayout} from '@/hooks/useBasicLayout'
+import {t} from '@/locales'
+import {useAuthStore} from '@/store'
+import {NButton, NDataTable, NInput, NModal, NSelect, NSpace, NSwitch, NTag, useDialog, useMessage} from 'naive-ui'
+import {h, onMounted, reactive, ref} from 'vue'
+import type {CHATMODEL} from './model'
+import {apiModelOptions, KeyConfig, Status, UserRole, userRoleOptions} from './model'
 
 const ms = useMessage()
 const dialog = useDialog()
@@ -143,8 +143,9 @@ const pagination = reactive({
 })
 
 async function handleGetKeys(page: number) {
-  if (loading.value)
+  if (loading.value) {
     return
+  }
   keys.value.length = 0
   loading.value = true
   const size = pagination.pageSize
@@ -183,8 +184,7 @@ async function handleUpdateKeyConfig() {
     await fetchUpsertApiKey(keyConfig.value)
     await handleGetKeys(pagination.page)
     show.value = false
-  }
-  catch (error: any) {
+  } catch (error: any) {
     ms.error(error.message)
   }
   handleSaving.value = false
@@ -224,7 +224,8 @@ onMounted(async () => {
           :pagination="pagination"
           :max-height="444"
           :scroll-x="1300"
-          striped @update:page="handleGetKeys"
+          striped
+          @update:page="handleGetKeys"
         />
       </NSpace>
     </div>
@@ -252,8 +253,10 @@ onMounted(async () => {
           <span class="flex-shrink-0 w-[100px]">{{ $t('setting.api') }}</span>
           <div class="flex-1">
             <NInput
-              v-model:value="keyConfig.key" type="textarea"
-              :autosize="{ minRows: 3, maxRows: 4 }" placeholder=""
+              v-model:value="keyConfig.key"
+              type="textarea"
+              :autosize="{ minRows: 3, maxRows: 4 }"
+              placeholder=""
             />
           </div>
         </div>
@@ -295,8 +298,10 @@ onMounted(async () => {
           <span class="flex-shrink-0 w-[100px]">{{ $t('setting.remark') }}</span>
           <div class="flex-1">
             <NInput
-              v-model:value="keyConfig.remark" type="textarea"
-              :autosize="{ minRows: 1, maxRows: 2 }" placeholder=""
+              v-model:value="keyConfig.remark"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 2 }"
+              placeholder=""
             />
           </div>
         </div>

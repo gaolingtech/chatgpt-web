@@ -1,6 +1,6 @@
-import type { Router } from 'vue-router'
-import { useAuthStoreWithout } from '@/store/modules/auth'
-import { useUserStore } from '@/store'
+import {useUserStore} from '@/store'
+import {useAuthStoreWithout} from '@/store/modules/auth'
+import type {Router} from 'vue-router'
 
 export function setupPageGuard(router: Router) {
   router.beforeEach(async (to, from, next) => {
@@ -8,24 +8,25 @@ export function setupPageGuard(router: Router) {
     if (!authStore.session) {
       try {
         const data = await authStore.getSession()
-        if (String(data.auth) === 'false' && authStore.token)
+        if (String(data.auth) === 'false' && authStore.token) {
           await authStore.removeToken()
-        else
+        } else {
           await useUserStore().updateUserInfo(false, data.userInfo)
+        }
 
-        if (to.path === '/500')
+        if (to.path === '/500') {
           next({ name: 'Root' })
-        else
+        } else {
           next()
-      }
-      catch (error) {
-        if (to.path !== '/500')
+        }
+      } catch (error) {
+        if (to.path !== '/500') {
           next({ name: '500' })
-        else
+        } else {
           next()
+        }
       }
-    }
-    else {
+    } else {
       next()
     }
   })

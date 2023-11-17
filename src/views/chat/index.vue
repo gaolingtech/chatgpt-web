@@ -1,34 +1,41 @@
 <script setup lang='ts'>
-import type { Ref } from 'vue'
-import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { storeToRefs } from 'pinia'
-import type { MessageReactive } from 'naive-ui'
-import { NAutoComplete, NButton, NInput, NSelect, NSpace, NSpin, useDialog, useMessage } from 'naive-ui'
-import html2canvas from 'html2canvas'
-import { Message } from './components'
-import { useScroll } from './hooks/useScroll'
-import { useChat } from './hooks/useChat'
-import HeaderComponent from './components/Header/index.vue'
-import { HoverButton, SvgIcon } from '@/components/common'
-import { useBasicLayout } from '@/hooks/useBasicLayout'
-import { useAuthStore, useChatStore, usePromptStore, useUserStore } from '@/store'
-import { fetchChatAPIProcess, fetchChatResponseoHistory, fetchChatStopResponding, fetchUpdateUserChatModel } from '@/api'
-import { t } from '@/locales'
-import { debounce } from '@/utils/functions/debounce'
+import {
+	fetchChatAPIProcess,
+	fetchChatResponseoHistory,
+	fetchChatStopResponding,
+	fetchUpdateUserChatModel,
+	fetchUploadImage
+} from '@/api'
+import {HoverButton, SvgIcon} from '@/components/common'
+import type {CHATMODEL} from '@/components/common/Setting/model'
+import {UserConfig} from '@/components/common/Setting/model'
+import {useBasicLayout} from '@/hooks/useBasicLayout'
 import IconPrompt from '@/icons/Prompt.vue'
-import { UserConfig } from '@/components/common/Setting/model'
-import type { CHATMODEL } from '@/components/common/Setting/model'
+import {t} from '@/locales'
+import {useAuthStore, useChatStore, usePromptStore, useUserStore} from '@/store'
+import {debounce} from '@/utils/functions/debounce'
+import html2canvas from 'html2canvas'
+import type {MessageReactive} from 'naive-ui'
+import {NAutoComplete, NButton, NImage, NInput, NSelect, NSpace, NSpin, NUpload, useDialog, useMessage} from 'naive-ui'
+import {storeToRefs} from 'pinia'
+import type {Ref} from 'vue'
+import {computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
+import {useRoute} from 'vue-router'
+import {Message} from './components'
+import HeaderComponent from './components/Header/index.vue'
+import {useChat} from './hooks/useChat'
+import {useScroll} from './hooks/useScroll'
+
 const Prompt = defineAsyncComponent(() => import('@/components/common/Setting/Prompt.vue'))
 
 let controller = new AbortController()
-let lastChatInfo: any = {}
+let lastChatInfo : any = {}
 
 const openLongReply = import.meta.env.VITE_GLOB_OPEN_LONG_REPLY === 'true'
 
+const ms = useMessage()
 const route = useRoute()
 const dialog = useDialog()
-const ms = useMessage()
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const chatStore = useChatStore()
@@ -39,50 +46,47 @@ const { scrollRef, scrollToBottom, scrollToBottomIfAtBottom, scrollTo } = useScr
 
 const { uuid } = route.params as { uuid: string }
 
-const currentChatHistory = computed(() => chatStore.getChatHistoryByCurrentActive)
-const usingContext = computed(() => currentChatHistory?.value?.usingContext ?? true)
-const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
-const conversationList = computed(() => dataSources.value.filter(item => (!item.inversion && !!item.conversationOptions)))
-
+const showPrompt = ref(false)
 const prompt = ref<string>('')
-const firstLoading = ref<boolean>(false)
+const images = ref<string[]>([])
 const loading = ref<boolean>(false)
 const inputRef = ref<Ref | null>(null)
-const showPrompt = ref(false)
+const firstLoading = ref<boolean>(false)
 const nowSelectChatModel = ref<CHATMODEL | null>(null)
+
+const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
+const currentChatHistory = computed(() => chatStore.getChatHistoryByCurrentActive)
+const usingContext = computed(() => currentChatHistory?.value?.usingContext ?? true)
+const conversationList = computed(() => dataSources.value.filter(item => (!item.inversion && !!item.conversationOptions)))
 const currentChatModel = computed(() => nowSelectChatModel.value ?? currentChatHistory.value?.chatModel ?? userStore.userInfo.config.chatModel)
 
 let loadingms: MessageReactive
 let allmsg: MessageReactive
 let prevScrollTop: number
 
-// 添加PromptStore
-const promptStore = usePromptStore()
-
-// 使用storeToRefs，保证store修改后，联想部分能够重新渲染
-const { promptList: promptTemplate } = storeToRefs<any>(promptStore)
+const { promptList: promptTemplate } = storeToRefs<any>(usePromptStore())
 
 // 未知原因刷新页面，loading 状态不会重置，手动重置
 dataSources.value.forEach((item, index) => {
-  if (item.loading)
+  if (item.loading) {
     updateChatSome(+uuid, index, { loading: false })
+  }
 })
 
-function handleSubmit() {
-  onConversation()
-}
-
-async function onConversation() {
+async function handleSubmit() {
   let message = prompt.value
 
-  if (loading.value)
+  if (loading.value) {
     return
+  }
 
-  if (!message || message.trim() === '')
+  if (!message || message.trim() === '') {
     return
+  }
 
-  if (nowSelectChatModel.value && currentChatHistory.value)
+  if (nowSelectChatModel.value && currentChatHistory.value) {
     currentChatHistory.value.chatModel = nowSelectChatModel.value
+  }
 
   controller = new AbortController()
 
@@ -93,6 +97,7 @@ async function onConversation() {
       uuid: chatUuid,
       dateTime: new Date().toLocaleString(),
       text: message,
+      images: images.value,
       inversion: true,
       error: false,
       conversationOptions: null,
@@ -103,12 +108,14 @@ async function onConversation() {
 
   loading.value = true
   prompt.value = ''
+  images.value = []
 
   let options: Chat.ConversationRequest = {}
   const lastContext = conversationList.value[conversationList.value.length - 1]?.conversationOptions
 
-  if (lastContext && usingContext.value)
+  if (lastContext && usingContext.value) {
     options = { ...lastContext }
+  }
 
   addChat(
     +uuid,
@@ -128,10 +135,11 @@ async function onConversation() {
   try {
     let lastText = ''
     const fetchChatAPIOnce = async () => {
-      await fetchChatAPIProcess<Chat.ConversationResponse>({
+      await fetchChatAPIProcess({
         roomId: +uuid,
         uuid: chatUuid,
         prompt: message,
+        images: images.value,
         options,
         signal: controller.signal,
         onDownloadProgress: ({ event }) => {
@@ -140,18 +148,19 @@ async function onConversation() {
           // Always process the final line
           const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
           let chunk = responseText
-          if (lastIndex !== -1)
+          if (lastIndex !== -1) {
             chunk = responseText.substring(lastIndex)
+          }
           try {
             const data = JSON.parse(chunk)
             lastChatInfo = data
             const usage = (data.detail && data.detail.usage)
               ? {
-                  completion_tokens: data.detail.usage.completion_tokens || null,
-                  prompt_tokens: data.detail.usage.prompt_tokens || null,
-                  total_tokens: data.detail.usage.total_tokens || null,
-                  estimated: data.detail.usage.estimated || null,
-                }
+                completion_tokens: data.detail.usage.completion_tokens || null,
+                prompt_tokens: data.detail.usage.prompt_tokens || null,
+                total_tokens: data.detail.usage.total_tokens || null,
+                estimated: data.detail.usage.estimated || null,
+              }
               : undefined
             updateChat(
               +uuid,
@@ -176,8 +185,7 @@ async function onConversation() {
             }
 
             scrollToBottomIfAtBottom()
-          }
-          catch (error) {
+          } catch (error) {
             //
           }
         },
@@ -186,8 +194,7 @@ async function onConversation() {
     }
 
     await fetchChatAPIOnce()
-  }
-  catch (error: any) {
+  } catch (error: any) {
     const errorMessage = error?.message ?? t('common.wrong')
 
     if (error.message === 'canceled') {
@@ -231,15 +238,15 @@ async function onConversation() {
       },
     )
     scrollToBottomIfAtBottom()
-  }
-  finally {
+  } finally {
     loading.value = false
   }
 }
 
 async function onRegenerate(index: number) {
-  if (loading.value)
+  if (loading.value) {
     return
+  }
 
   controller = new AbortController()
 
@@ -251,8 +258,9 @@ async function onRegenerate(index: number) {
 
   let options: Chat.ConversationRequest = {}
 
-  if (requestOptions.options)
+  if (requestOptions.options) {
     options = { ...requestOptions.options }
+  }
 
   loading.value = true
   const chatUuid = dataSources.value[index].uuid
@@ -274,7 +282,7 @@ async function onRegenerate(index: number) {
   try {
     let lastText = ''
     const fetchChatAPIOnce = async () => {
-      await fetchChatAPIProcess<Chat.ConversationResponse>({
+      await fetchChatAPIProcess({
         roomId: +uuid,
         uuid: chatUuid || Date.now(),
         regenerate: true,
@@ -287,18 +295,19 @@ async function onRegenerate(index: number) {
           // Always process the final line
           const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
           let chunk = responseText
-          if (lastIndex !== -1)
+          if (lastIndex !== -1) {
             chunk = responseText.substring(lastIndex)
+          }
           try {
             const data = JSON.parse(chunk)
             lastChatInfo = data
             const usage = (data.detail && data.detail.usage)
               ? {
-                  completion_tokens: data.detail.usage.completion_tokens || null,
-                  prompt_tokens: data.detail.usage.prompt_tokens || null,
-                  total_tokens: data.detail.usage.total_tokens || null,
-                  estimated: data.detail.usage.estimated || null,
-                }
+                completion_tokens: data.detail.usage.completion_tokens || null,
+                prompt_tokens: data.detail.usage.prompt_tokens || null,
+                total_tokens: data.detail.usage.total_tokens || null,
+                estimated: data.detail.usage.estimated || null,
+              }
               : undefined
             updateChat(
               +uuid,
@@ -322,8 +331,7 @@ async function onRegenerate(index: number) {
               message = ''
               return fetchChatAPIOnce()
             }
-          }
-          catch (error) {
+          } catch (error) {
             //
           }
         },
@@ -331,8 +339,7 @@ async function onRegenerate(index: number) {
       updateChatSome(+uuid, index, { loading: false })
     }
     await fetchChatAPIOnce()
-  }
-  catch (error: any) {
+  } catch (error: any) {
     if (error.message === 'canceled') {
       updateChatSome(
         +uuid,
@@ -360,8 +367,7 @@ async function onRegenerate(index: number) {
         requestOptions: { prompt: message, options: { ...options } },
       },
     )
-  }
-  finally {
+  } finally {
     loading.value = false
   }
 }
@@ -386,8 +392,9 @@ async function onResponseHistory(index: number, historyIndex: number) {
 }
 
 function handleExport() {
-  if (loading.value)
+  if (loading.value) {
     return
+  }
 
   const d = dialog.warning({
     title: t('chat.exportImage'),
@@ -406,8 +413,9 @@ function handleExport() {
         tempLink.style.display = 'none'
         tempLink.href = imgUrl
         tempLink.setAttribute('download', 'chat-shot.png')
-        if (typeof tempLink.download === 'undefined')
+        if (typeof tempLink.download === 'undefined') {
           tempLink.setAttribute('target', '_blank')
+        }
 
         document.body.appendChild(tempLink)
         tempLink.click()
@@ -416,11 +424,9 @@ function handleExport() {
         d.loading = false
         ms.success(t('chat.exportSuccess'))
         Promise.resolve()
-      }
-      catch (error: any) {
+      } catch (error: any) {
         ms.error(t('chat.exportFailed'))
-      }
-      finally {
+      } finally {
         d.loading = false
       }
     },
@@ -428,8 +434,9 @@ function handleExport() {
 }
 
 function handleDelete(index: number) {
-  if (loading.value)
+  if (loading.value) {
     return
+  }
 
   dialog.warning({
     title: t('chat.deleteMessage'),
@@ -443,8 +450,9 @@ function handleDelete(index: number) {
 }
 
 function handleClear() {
-  if (loading.value)
+  if (loading.value) {
     return
+  }
 
   dialog.warning({
     title: t('chat.clearChat'),
@@ -463,8 +471,7 @@ function handleEnter(event: KeyboardEvent) {
       event.preventDefault()
       handleSubmit()
     }
-  }
-  else {
+  } else {
     if (event.key === 'Enter' && event.ctrlKey) {
       event.preventDefault()
       handleSubmit()
@@ -482,8 +489,9 @@ async function handleStop() {
 
 async function loadMoreMessage(event: any) {
   const chatIndex = chatStore.chat.findIndex(d => d.uuid === +uuid)
-  if (chatIndex <= -1 || chatStore.chat[chatIndex].data.length <= 0)
+  if (chatIndex <= -1 || chatStore.chat[chatIndex].data.length <= 0) {
     return
+  }
 
   const scrollPosition = event.target.scrollHeight - event.target.scrollTop
 
@@ -512,30 +520,35 @@ const handleSyncChat
     chatStore.syncChat({ uuid: Number(uuid) } as Chat.History, undefined, () => {
       firstLoading.value = false
       const scrollRef = document.querySelector('#scrollRef')
-      if (scrollRef)
+      if (scrollRef) {
         nextTick(() => scrollRef.scrollTop = scrollRef.scrollHeight)
-      if (inputRef.value && !isMobile.value)
+      }
+      if (inputRef.value && !isMobile.value) {
         inputRef.value?.focus()
+      }
     })
   }, 200)
 
 async function handleScroll(event: any) {
   const scrollTop = event.target.scrollTop
-  if (scrollTop < 50 && (scrollTop < prevScrollTop || prevScrollTop === undefined))
+  if (scrollTop < 50 && (scrollTop < prevScrollTop || prevScrollTop === undefined)) {
     handleLoadMoreMessage(event)
+  }
   prevScrollTop = scrollTop
 }
 
 async function handleToggleUsingContext() {
-  if (!currentChatHistory.value)
+  if (!currentChatHistory.value) {
     return
+  }
 
   currentChatHistory.value.usingContext = !currentChatHistory.value.usingContext
   chatStore.setUsingContext(currentChatHistory.value.usingContext, +uuid)
-  if (currentChatHistory.value.usingContext)
+  if (currentChatHistory.value.usingContext) {
     ms.success(t('chat.turnOnContext'))
-  else
+  } else {
     ms.warning(t('chat.turnOffContext'))
+  }
 }
 
 // 可优化部分
@@ -549,8 +562,7 @@ const searchOptions = computed(() => {
         value: obj.value,
       }
     })
-  }
-  else {
+  } else {
     return []
   }
 })
@@ -558,15 +570,17 @@ const searchOptions = computed(() => {
 // value反渲染key
 const renderOption = (option: { label: string }) => {
   for (const i of promptTemplate.value) {
-    if (i.value === option.label)
+    if (i.value === option.label) {
       return [i.key]
+    }
   }
   return []
 }
 
 const placeholder = computed(() => {
-  if (isMobile.value)
+  if (isMobile.value) {
     return t('chat.placeholderMobile')
+  }
   return t('chat.placeholder')
 })
 
@@ -576,18 +590,27 @@ const buttonDisabled = computed(() => {
 
 const footerClass = computed(() => {
   let classes = ['p-4']
-  if (isMobile.value)
+  if (isMobile.value) {
     classes = ['sticky', 'left-0', 'bottom-0', 'right-0', 'p-2', 'pr-3', 'overflow-hidden']
+  }
   return classes
 })
 
 async function handleSyncChatModel(chatModel: CHATMODEL) {
   nowSelectChatModel.value = chatModel
-  if (userStore.userInfo.config == null)
+  if (!userStore.userInfo.config) {
     userStore.userInfo.config = new UserConfig()
+  }
+
   userStore.userInfo.config.chatModel = chatModel
   userStore.recordState()
   await fetchUpdateUserChatModel(chatModel)
+}
+
+const handleUpload = async (event: any) => {
+  const file = event.target.files![0]
+  return fetchUploadImage(file)
+    .then(r => images.value.push(r.data))
 }
 
 onMounted(() => {
@@ -596,18 +619,20 @@ onMounted(() => {
 
   if (authStore.token) {
     const chatModels = authStore.session?.chatModels
-    if (chatModels != null && chatModels.filter(d => d.value === userStore.userInfo.config.chatModel).length <= 0)
+    if (chatModels && chatModels.filter(d => d.value === userStore.userInfo.config.chatModel).length <= 0) {
       ms.error('你选择的模型已不存在，请重新选择 | The selected model not exists, please choose again.', { duration: 7000 })
+    }
   }
 })
 
-watch(() => chatStore.active, (newVal, oldVal) => {
+watch(() => chatStore.active, () => {
   handleSyncChat()
 })
 
 onUnmounted(() => {
-  if (loading.value)
+  if (loading.value) {
     controller.abort()
+  }
 })
 </script>
 
@@ -617,7 +642,8 @@ onUnmounted(() => {
       v-if="isMobile"
       :using-context="usingContext"
       :show-prompt="showPrompt"
-      @export="handleExport" @toggle-using-context="handleToggleUsingContext"
+      @export="handleExport"
+      @toggle-using-context="handleToggleUsingContext"
       @toggle-show-prompt="showPrompt = true"
     />
     <main class="flex-1 overflow-hidden">
@@ -641,6 +667,7 @@ onUnmounted(() => {
                   :key="index"
                   :date-time="item.dateTime"
                   :text="item.text"
+                  :images="item.images"
                   :inversion="item.inversion"
                   :response-count="item.responseCount"
                   :usage="item && item.usage || undefined"
@@ -697,7 +724,36 @@ onUnmounted(() => {
               @update-value="(val) => handleSyncChatModel(val)"
             />
           </div>
+          <div class="p-4 flex gap-4">
+            <div v-for="image in images" :key="image" class="flex items-center justify-center w-24 h-24 border border-dashed border-white overflow-hidden">
+              <NImage :src="image" object-fit="contain" />
+            </div>
+          </div>
+
           <div class="flex items-center justify-between space-x-2">
+            <div
+              v-if="currentChatModel === 'gpt-4-vision-preview'"
+              class="relative p-4"
+            >
+              <NUpload
+                :file-list="[]"
+                :headers="{
+                  'naive-info': 'hello!',
+                }"
+                :data="{
+                  'naive-data': 'cool! naive!',
+                }"
+                @input="handleUpload"
+              >
+                <NButton dashed>
+                  <template #icon>
+                    <span class="dark:text-black">
+                      <SvgIcon icon="ri:links-fill" />
+                    </span>
+                  </template>
+                </NButton>
+              </NUpload>
+            </div>
             <NAutoComplete v-model:value="prompt" :options="searchOptions" :render-label="renderOption">
               <template #default="{ handleInput, handleBlur, handleFocus }">
                 <NInput

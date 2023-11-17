@@ -1,15 +1,30 @@
 <script setup lang='ts'>
-import type { DataTableColumns } from 'naive-ui'
-import { computed, h, ref, watch } from 'vue'
-import { NButton, NCard, NDataTable, NDivider, NInput, NList, NListItem, NModal, NPopconfirm, NSpace, NTabPane, NTabs, NThing, useMessage } from 'naive-ui'
-import PromptRecommend from '../../../assets/recommend.json'
-import { SvgIcon } from '..'
-import { usePromptStore } from '@/store'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { t } from '@/locales'
+import { usePromptStore } from '@/store'
+import type { DataTableColumns } from 'naive-ui'
+import {
+  NButton,
+  NCard,
+  NDataTable,
+  NDivider,
+  NInput,
+  NList,
+  NListItem,
+  NModal,
+  NPopconfirm,
+  NSpace,
+  NTabPane,
+  NTabs,
+  NThing,
+  useMessage
+} from 'naive-ui'
+import { computed, h, ref, watch } from 'vue'
+import { SvgIcon } from '..'
+import PromptRecommend from '../../../assets/recommend.json'
 
 interface DataProps {
-  renderKey: string
+  renderKey : string
   renderValue: string
   key: string
   value: string
@@ -65,13 +80,11 @@ const changeShowModal = (mode: 'add' | 'modify' | 'local_import', selected = { k
   if (mode === 'add') {
     tempPromptKey.value = ''
     tempPromptValue.value = ''
-  }
-  else if (mode === 'modify') {
+  } else if (mode === 'modify') {
     tempModifiedItem.value = { ...selected }
     tempPromptKey.value = selected.key
     tempPromptValue.value = selected.value
-  }
-  else if (mode === 'local_import') {
+  } else if (mode === 'local_import') {
     tempPromptKey.value = 'local_import'
     tempPromptValue.value = ''
   }
@@ -111,8 +124,9 @@ const modifyPromptTemplate = () => {
 
   // 通过临时索引把待修改项摘出来
   for (const i of promptList.value) {
-    if (i.key === tempModifiedItem.value.key && i.value === tempModifiedItem.value.value)
+    if (i.key === tempModifiedItem.value.key && i.value === tempModifiedItem.value.value) {
       break
+    }
     index = index + 1
   }
 
@@ -156,20 +170,19 @@ const importPromptTemplate = (from = 'online') => {
     if ('key' in jsonData[0]) {
       key = 'key'
       value = 'value'
-    }
-    else if ('act' in jsonData[0]) {
+    } else if ('act' in jsonData[0]) {
       key = 'act'
       value = 'prompt'
-    }
-    else {
+    } else {
       // 不支持的字典的key防止导入 以免破坏prompt商店打开
       message.warning('prompt key not supported.')
       throw new Error('prompt key not supported.')
     }
 
     for (const i of jsonData) {
-      if (!(key in i) || !(value in i))
+      if (!(key in i) || !(value in i)) {
         throw new Error(t('store.importError'))
+      }
       let safe = true
       for (const j of promptList.value) {
         if (j.key === i[key]) {
@@ -183,16 +196,17 @@ const importPromptTemplate = (from = 'online') => {
           break
         }
       }
-      if (safe)
+      if (safe) {
         promptList.value.unshift({ key: i[key], value: i[value] } as never)
+      }
     }
     message.success(t('common.importSuccess'))
-  }
-  catch {
+  } catch {
     message.error('JSON 格式错误，请检查 JSON 格式')
   }
-  if (from === 'local')
+  if (from === 'local') {
     showModal.value = !showModal.value
+  }
 }
 
 // 模板导出
@@ -215,8 +229,9 @@ const downloadPromptTemplate = async () => {
     importLoading.value = true
     const response = await fetch(downloadURL.value)
     const jsonData = await response.json()
-    if ('key' in jsonData[0] && 'value' in jsonData[0])
+    if ('key' in jsonData[0] && 'value' in jsonData[0]) {
       tempPromptValue.value = JSON.stringify(jsonData)
+    }
     if ('act' in jsonData[0] && 'prompt' in jsonData[0]) {
       const newJsonData = jsonData.map((item: { act: string; prompt: string }) => {
         return {
@@ -228,12 +243,10 @@ const downloadPromptTemplate = async () => {
     }
     importPromptTemplate()
     downloadURL.value = ''
-  }
-  catch {
+  } catch {
     message.error(t('store.downloadError'))
     downloadURL.value = ''
-  }
-  finally {
+  } finally {
     importLoading.value = false
   }
 }
@@ -413,7 +426,8 @@ const dataSource = computed(() => {
           <div class="max-h-[360px] overflow-y-auto space-y-4">
             <NCard
               v-for="info in promptRecommendList"
-              :key="info.key" :title="info.key"
+              :key="info.key"
+              :title="info.key"
               :bordered="true"
               embedded
             >

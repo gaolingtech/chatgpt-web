@@ -1,17 +1,18 @@
 <script setup lang='ts'>
-import { computed, ref } from 'vue'
-import { NButton, NButtonGroup, NDropdown, NPopover, NSpace, useMessage } from 'naive-ui'
+import {SvgIcon} from '@/components/common'
+import {useBasicLayout} from '@/hooks/useBasicLayout'
+import {useIconRender} from '@/hooks/useIconRender'
+import {t} from '@/locales'
+import {copyToClip} from '@/utils/copy'
+import {NButton, NButtonGroup, NDropdown, NPopover, NSpace, useMessage} from 'naive-ui'
+import {computed, ref} from 'vue'
 import AvatarComponent from './Avatar.vue'
 import TextComponent from './Text.vue'
-import { SvgIcon } from '@/components/common'
-import { useIconRender } from '@/hooks/useIconRender'
-import { t } from '@/locales'
-import { useBasicLayout } from '@/hooks/useBasicLayout'
-import { copyToClip } from '@/utils/copy'
 
 interface Props {
   dateTime?: string
   text?: string
+	images?: string[]
   inversion?: boolean
   error?: boolean
   loading?: boolean
@@ -170,6 +171,7 @@ async function handlePreviousResponse(next: number) {
           </template>
         </NSpace>
       </p>
+
       <div
         class="flex items-end gap-1 mt-2"
         :class="[inversion ? 'flex-row-reverse' : 'flex-row']"
@@ -179,6 +181,7 @@ async function handlePreviousResponse(next: number) {
           :inversion="inversion"
           :error="error"
           :text="text"
+					:images="images"
           :loading="loading"
           :as-raw-text="asRawText"
         />

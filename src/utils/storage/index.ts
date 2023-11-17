@@ -25,15 +25,15 @@ export function createLocalStorage(options?: { expire?: number | null }) {
 
       try {
         storageData = JSON.parse(json)
-      }
-      catch {
+      } catch {
         // Prevent failure
       }
 
       if (storageData) {
         const { data, expire } = storageData
-        if (expire === null || expire >= Date.now())
+        if (expire === null || expire >= Date.now()) {
           return data
+        }
       }
 
       remove(key)

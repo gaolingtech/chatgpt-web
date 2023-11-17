@@ -1,5 +1,5 @@
-import type { Ref } from 'vue'
-import { nextTick, ref } from 'vue'
+import type {Ref} from 'vue'
+import {nextTick, ref} from 'vue'
 
 type ScrollElement = HTMLDivElement | null
 
@@ -16,20 +16,23 @@ export function useScroll(): ScrollReturn {
 
   const scrollTo = async (top: number) => {
     await nextTick()
-    if (scrollRef.value)
+    if (scrollRef.value) {
       scrollRef.value.scrollTop = top
+    }
   }
 
   const scrollToBottom = async () => {
     await nextTick()
-    if (scrollRef.value)
+    if (scrollRef.value) {
       scrollRef.value.scrollTop = scrollRef.value.scrollHeight
+    }
   }
 
   const scrollToTop = async () => {
     await nextTick()
-    if (scrollRef.value)
+    if (scrollRef.value) {
       scrollRef.value.scrollTop = 0
+    }
   }
 
   const scrollToBottomIfAtBottom = async () => {
@@ -37,8 +40,9 @@ export function useScroll(): ScrollReturn {
     if (scrollRef.value) {
       const threshold = 100 // 阈值，表示滚动条到底部的距离阈值
       const distanceToBottom = scrollRef.value.scrollHeight - scrollRef.value.scrollTop - scrollRef.value.clientHeight
-      if (distanceToBottom <= threshold)
+      if (distanceToBottom <= threshold) {
         scrollRef.value.scrollTop = scrollRef.value.scrollHeight
+      }
     }
   }
 
