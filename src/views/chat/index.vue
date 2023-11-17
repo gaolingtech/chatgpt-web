@@ -1,30 +1,30 @@
 <script setup lang='ts'>
 import {
-	fetchChatAPIProcess,
-	fetchChatResponseoHistory,
-	fetchChatStopResponding,
-	fetchUpdateUserChatModel,
-	fetchUploadImage
+  fetchChatAPIProcess,
+  fetchChatResponseoHistory,
+  fetchChatStopResponding,
+  fetchUpdateUserChatModel,
+  fetchUploadImage
 } from '@/api'
-import {HoverButton, SvgIcon} from '@/components/common'
-import type {CHATMODEL} from '@/components/common/Setting/model'
-import {UserConfig} from '@/components/common/Setting/model'
-import {useBasicLayout} from '@/hooks/useBasicLayout'
+import { HoverButton, SvgIcon } from '@/components/common'
+import type { CHATMODEL } from '@/components/common/Setting/model'
+import { UserConfig } from '@/components/common/Setting/model'
+import { useBasicLayout } from '@/hooks/useBasicLayout'
 import IconPrompt from '@/icons/Prompt.vue'
-import {t} from '@/locales'
-import {useAuthStore, useChatStore, usePromptStore, useUserStore} from '@/store'
-import {debounce} from '@/utils/functions/debounce'
+import { t } from '@/locales'
+import { useAuthStore, useChatStore, usePromptStore, useUserStore } from '@/store'
+import { debounce } from '@/utils/functions/debounce'
 import html2canvas from 'html2canvas'
-import type {MessageReactive} from 'naive-ui'
-import {NAutoComplete, NButton, NImage, NInput, NSelect, NSpace, NSpin, NUpload, useDialog, useMessage} from 'naive-ui'
-import {storeToRefs} from 'pinia'
-import type {Ref} from 'vue'
-import {computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
-import {useRoute} from 'vue-router'
-import {Message} from './components'
+import type { MessageReactive } from 'naive-ui'
+import { NAutoComplete, NButton, NImage, NInput, NSelect, NSpace, NSpin, NUpload, useDialog, useMessage } from 'naive-ui'
+import { storeToRefs } from 'pinia'
+import type { Ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { Message } from './components'
 import HeaderComponent from './components/Header/index.vue'
-import {useChat} from './hooks/useChat'
-import {useScroll} from './hooks/useScroll'
+import { useChat } from './hooks/useChat'
+import { useScroll } from './hooks/useScroll'
 
 const Prompt = defineAsyncComponent(() => import('@/components/common/Setting/Prompt.vue'))
 
@@ -108,7 +108,6 @@ async function handleSubmit() {
 
   loading.value = true
   prompt.value = ''
-  images.value = []
 
   let options: Chat.ConversationRequest = {}
   const lastContext = conversationList.value[conversationList.value.length - 1]?.conversationOptions
@@ -240,6 +239,7 @@ async function handleSubmit() {
     scrollToBottomIfAtBottom()
   } finally {
     loading.value = false
+    images.value = []
   }
 }
 
