@@ -27,7 +27,8 @@ declare namespace Chat {
     loading?: boolean
     all?: boolean
     prompt?: string
-    usingContext: boolean
+		usingContext: boolean
+		usingImageGeneration: boolean
     chatModel?: CHATMODEL
   }
 
@@ -58,4 +59,11 @@ declare namespace Chat {
     role: string
     text: string
   }
+
+	interface ImageGenerationResponse {
+		conversationId: string
+		created: number
+		data: { url: string }[]
+		detail: {}
+	}
 }

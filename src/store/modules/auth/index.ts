@@ -1,10 +1,10 @@
-import {fetchSession} from '@/api'
-import {UserConfig} from '@/components/common/Setting/model'
-import {store, useChatStore, useUserStore} from '@/store'
+import { fetchSession } from '@/api'
+import { UserConfig } from '@/components/common/Setting/model'
+import { store, useChatStore, useUserStore } from '@/store'
 import jwt_decode from 'jwt-decode'
-import {defineStore} from 'pinia'
-import type {UserInfo} from '../user/helper'
-import {getToken, removeToken, setToken} from './helper'
+import { defineStore } from 'pinia'
+import type { UserInfo } from '../user/helper'
+import { getToken, removeToken, setToken } from './helper'
 
 interface SessionResponse {
   auth: boolean

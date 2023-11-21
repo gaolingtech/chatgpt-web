@@ -1,5 +1,5 @@
-import {SvgIcon} from '@/components/common'
-import {h} from 'vue'
+import { SvgIcon } from '@/components/common'
+import { h } from 'vue'
 
 export const useIconRender = () => {
   interface IconConfig {

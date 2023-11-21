@@ -9,7 +9,7 @@ const { theme, themeOverrides } = useTheme()
 const { language } = useLanguage()
 
 onMounted(() => {
-  document.title = process.env.VITE_SITE_TITLE
+  document.title = import.meta.env.VITE_SITE_TITLE
 })
 </script>
 

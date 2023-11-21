@@ -54,6 +54,8 @@ export default {
     usingContext: '上下文模式',
     turnOnContext: '当前模式下, 发送消息会携带之前的聊天记录',
     turnOffContext: '当前模式下, 发送消息不会携带之前的聊天记录',
+    turnOnImageGeneration: '当前模式下, 输入的提示词将会作为图片生成的关键词',
+    turnOffImageGeneration: '当前模式下, 将无法使用图片生成功能',
     deleteMessage: '删除消息',
     deleteMessageConfirm: '是否删除此消息?',
     deleteHistoryConfirm: '确定删除此记录?',

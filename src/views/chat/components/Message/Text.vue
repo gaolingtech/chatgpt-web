@@ -1,13 +1,13 @@
 <script lang="ts" setup>
-import {useBasicLayout} from '@/hooks/useBasicLayout'
-import {t} from '@/locales'
-import {copyToClip} from '@/utils/copy'
+import { useBasicLayout } from '@/hooks/useBasicLayout'
+import { t } from '@/locales'
+import { copyToClip } from '@/utils/copy'
 import mdKatex from '@traptitech/markdown-it-katex'
 import hljs from 'highlight.js'
 import MarkdownIt from 'markdown-it'
 import mila from 'markdown-it-link-attributes'
-import {NImage} from 'naive-ui'
-import {computed, onMounted, onUnmounted, onUpdated, ref} from 'vue'
+import { NImage } from 'naive-ui'
+import { computed, onMounted, onUnmounted, onUpdated, ref } from 'vue'
 
 interface Props {
   inversion?: boolean
@@ -105,11 +105,21 @@ onUnmounted(() => {
 <template>
   <div class="text-black" :class="wrapClass">
     <div ref="textRef" class="leading-relaxed break-words">
+      <!-- Left side, assistant side -->
       <div v-if="!inversion" class="flex items-end">
+        <div v-if="images" class="flex gap-2 mb-2">
+          <NImage
+            v-for="image in images"
+            :key="image"
+            :src="image"
+            object-fit="contain"
+          />
+        </div>
         <div v-if="!asRawText" class="w-full markdown-body" v-html="text" />
         <div v-else class="w-full whitespace-pre-wrap" v-text="text" />
         <span v-if="loading" class="dark:text-white w-[4px] h-[20px] block animate-blink" />
       </div>
+      <!-- Right side, user side -->
       <div v-else>
         <div v-if="images" class="flex gap-2 mb-2">
           <NImage v-for="image in images" :key="image" :src="image" class="h-16" />

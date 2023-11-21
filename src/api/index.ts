@@ -1,17 +1,17 @@
 import type {
-	AuditConfig,
-	CHATMODEL,
-	ConfigState,
-	KeyConfig,
-	MailConfig,
-	SiteConfig,
-	Status,
-	UserInfo,
-	UserPassword
+  AuditConfig,
+  CHATMODEL,
+  ConfigState,
+  KeyConfig,
+  MailConfig,
+  SiteConfig,
+  Status,
+  UserInfo,
+  UserPassword
 } from '@/components/common/Setting/model'
-import {useAuthStore, useSettingStore} from '@/store'
-import {get, post} from '@/utils/request'
-import type {AxiosProgressEvent, GenericAbortSignal} from 'axios'
+import { useAuthStore, useSettingStore } from '@/store'
+import { get, post } from '@/utils/request'
+import type { AxiosProgressEvent, GenericAbortSignal } from 'axios'
 
 export function fetchChatConfig<T = any>() {
   return post<T>({
@@ -51,7 +51,7 @@ export function fetchChatAPIProcess(
     }
   }
 
-  return post<Chat.ConversationResponse>({
+  return post<Chat.ConversationResponse | Chat.ImageGenerationResponse>({
     url: '/chat-process',
     data,
     signal: params.signal,
@@ -217,10 +217,12 @@ export function fetchUpdateChatRoomPrompt<T = any>(prompt: string, roomId: numbe
   })
 }
 
-export function fetchUpdateChatRoomUsingContext<T = any>(using: boolean, roomId: number) {
+export function fetchUpdateChatRoomSetting<T = any>(
+  data: { roomId: number, usingContext?: boolean, usingImageGeneration?: boolean }
+) {
   return post<T>({
-    url: '/room-context',
-    data: { using, roomId },
+    url: '/room-setting',
+    data
   })
 }
 

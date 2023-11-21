@@ -57,6 +57,7 @@ const nowSelectChatModel = ref<CHATMODEL | null>(null)
 const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
 const currentChatHistory = computed(() => chatStore.getChatHistoryByCurrentActive)
 const usingContext = computed(() => currentChatHistory?.value?.usingContext ?? true)
+const usingImageGeneration = computed(() => currentChatHistory?.value?.usingImageGeneration || false)
 const conversationList = computed(() => dataSources.value.filter(item => (!item.inversion && !!item.conversationOptions)))
 const currentChatModel = computed(() => nowSelectChatModel.value ?? currentChatHistory.value?.chatModel ?? userStore.userInfo.config.chatModel)
 
@@ -72,6 +73,103 @@ dataSources.value.forEach((item, index) => {
     updateChatSome(+uuid, index, { loading: false })
   }
 })
+
+async function handleChatCompletionResponse(chatUuid: number, message: string, options: Chat.ConversationRequest) {
+  let lastText = ''
+  const fetchChatAPIOnce = async () => {
+    await fetchChatAPIProcess({
+      roomId: +uuid,
+      uuid: chatUuid,
+      prompt: message,
+      images: images.value,
+      options,
+      signal: controller.signal,
+      onDownloadProgress: ({ event: { target: { responseText } } }) => {
+        // const { responseText } = xhr
+        // Always process the final line
+        const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
+        let chunk = responseText
+        if (lastIndex !== -1) {
+          chunk = responseText.substring(lastIndex)
+        }
+        try {
+          const data = JSON.parse(chunk)
+          lastChatInfo = data
+          const usage = (data.detail && data.detail.usage)
+            ? {
+              completion_tokens: data.detail.usage.completion_tokens || null,
+              prompt_tokens: data.detail.usage.prompt_tokens || null,
+              total_tokens: data.detail.usage.total_tokens || null,
+              estimated: data.detail.usage.estimated || null,
+            }
+            : undefined
+          updateChat(
+            +uuid,
+            dataSources.value.length - 1,
+            {
+              dateTime: new Date().toLocaleString(),
+              text: lastText + (data.text ?? ''),
+              inversion: false,
+              error: false,
+              loading: true,
+              conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
+              requestOptions: { prompt: message, options: { ...options } },
+              usage,
+            },
+          )
+
+          if (openLongReply && data.detail && data.detail.choices.length > 0 && data.detail.choices[0].finish_reason === 'length') {
+            options.parentMessageId = data.id
+            lastText = data.text
+            message = ''
+            return fetchChatAPIOnce()
+          }
+
+          scrollToBottomIfAtBottom()
+        } catch (error) {
+          //
+        }
+      },
+    })
+    updateChatSome(+uuid, dataSources.value.length - 1, { loading: false })
+  }
+
+  await fetchChatAPIOnce()
+}
+
+async function handleImageGenerationResponse(chatUuid: number, message: string, options: Chat.ConversationRequest) {
+  const response = await fetchChatAPIProcess({
+    roomId: +uuid,
+    uuid: chatUuid,
+    prompt: message,
+    images: images.value,
+    options,
+    signal: controller.signal,
+  })
+
+  const data: Chat.ImageGenerationResponse = response.data as Chat.ImageGenerationResponse
+
+  lastChatInfo = data
+  updateChat(
+    +uuid,
+    dataSources.value.length - 1,
+    {
+      dateTime: new Date().toLocaleString(),
+      text: '',
+      images: data.data.map(o => o.url),
+      inversion: false,
+      error: false,
+      loading: true,
+      conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
+      requestOptions: { prompt: message, options: { ...options } },
+      usage: undefined,
+    },
+  )
+
+  scrollToBottomIfAtBottom()
+
+  updateChatSome(+uuid, dataSources.value.length - 1, { loading: false })
+}
 
 async function handleSubmit() {
   let message = prompt.value
@@ -132,68 +230,13 @@ async function handleSubmit() {
   scrollToBottom()
 
   try {
-    let lastText = ''
-    const fetchChatAPIOnce = async () => {
-      await fetchChatAPIProcess({
-        roomId: +uuid,
-        uuid: chatUuid,
-        prompt: message,
-        images: images.value,
-        options,
-        signal: controller.signal,
-        onDownloadProgress: ({ event }) => {
-          const xhr = event.target
-          const { responseText } = xhr
-          // Always process the final line
-          const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
-          let chunk = responseText
-          if (lastIndex !== -1) {
-            chunk = responseText.substring(lastIndex)
-          }
-          try {
-            const data = JSON.parse(chunk)
-            lastChatInfo = data
-            const usage = (data.detail && data.detail.usage)
-              ? {
-                completion_tokens: data.detail.usage.completion_tokens || null,
-                prompt_tokens: data.detail.usage.prompt_tokens || null,
-                total_tokens: data.detail.usage.total_tokens || null,
-                estimated: data.detail.usage.estimated || null,
-              }
-              : undefined
-            updateChat(
-              +uuid,
-              dataSources.value.length - 1,
-              {
-                dateTime: new Date().toLocaleString(),
-                text: lastText + (data.text ?? ''),
-                inversion: false,
-                error: false,
-                loading: true,
-                conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
-                requestOptions: { prompt: message, options: { ...options } },
-                usage,
-              },
-            )
-
-            if (openLongReply && data.detail && data.detail.choices.length > 0 && data.detail.choices[0].finish_reason === 'length') {
-              options.parentMessageId = data.id
-              lastText = data.text
-              message = ''
-              return fetchChatAPIOnce()
-            }
-
-            scrollToBottomIfAtBottom()
-          } catch (error) {
-            //
-          }
-        },
-      })
-      updateChatSome(+uuid, dataSources.value.length - 1, { loading: false })
+    if (usingImageGeneration.value) {
+      handleImageGenerationResponse(chatUuid, message, options)
+    } else {
+      handleChatCompletionResponse(chatUuid, message, options)
     }
-
-    await fetchChatAPIOnce()
   } catch (error: any) {
+    console.warn(error)
     const errorMessage = error?.message ?? t('common.wrong')
 
     if (error.message === 'canceled') {
@@ -543,11 +586,34 @@ async function handleToggleUsingContext() {
   }
 
   currentChatHistory.value.usingContext = !currentChatHistory.value.usingContext
-  chatStore.setUsingContext(currentChatHistory.value.usingContext, +uuid)
+  chatStore.setRoomSetting(
+    +uuid,
+    currentChatHistory.value.usingContext,
+    undefined
+  )
   if (currentChatHistory.value.usingContext) {
     ms.success(t('chat.turnOnContext'))
   } else {
     ms.warning(t('chat.turnOffContext'))
+  }
+}
+
+async function handleToggleUsingImageGeneration() {
+  if (!currentChatHistory.value) {
+    return
+  }
+
+  currentChatHistory.value.usingImageGeneration = !currentChatHistory.value.usingImageGeneration
+  chatStore.setRoomSetting(
+    +uuid,
+    undefined,
+    currentChatHistory.value?.usingImageGeneration,
+  )
+
+  if (currentChatHistory.value?.usingImageGeneration) {
+    ms.success(t('chat.turnOnImageGeneration'))
+  } else {
+    ms.warning(t('chat.turnOffImageGeneration'))
   }
 }
 
@@ -710,12 +776,30 @@ onUnmounted(() => {
                 <IconPrompt class="w-[20px] m-auto" />
               </span>
             </HoverButton>
-            <HoverButton v-if="!isMobile" :tooltip="usingContext ? '点击停止包含上下文' : '点击开启包含上下文'" :class="{ 'text-[#4b9e5f]': usingContext, 'text-[#a8071a]': !usingContext }" @click="handleToggleUsingContext">
+            <HoverButton
+              v-if="!isMobile"
+              :tooltip="usingContext ? '点击停止包含上下文' : '点击开启包含上下文'"
+              :class="{ 'text-[#4b9e5f]': usingContext, 'text-[#a8071a]': !usingContext }"
+              @click="handleToggleUsingContext"
+            >
               <span class="text-xl">
                 <SvgIcon icon="ri:chat-history-line" />
               </span>
               <span style="margin-left:.25em">{{ usingContext ? '包含上下文' : '不含上下文' }}</span>
             </HoverButton>
+
+            <HoverButton
+              v-if="!isMobile"
+              :tooltip="usingImageGeneration ? '点击停止使用图片生成' : '点击开启使用图片生成'"
+              :class="{ 'text-[#4b9e5f]': usingImageGeneration, 'text-[#a8071a]': !usingImageGeneration }"
+              @click="handleToggleUsingImageGeneration"
+            >
+              <span class="text-xl">
+                <SvgIcon icon="ri:chat-history-line" />
+              </span>
+              <span style="margin-left:.25em">{{ usingImageGeneration ? '使用图片生成' : '不使用图片生成' }}</span>
+            </HoverButton>
+
             <NSelect
               style="width: 250px"
               :value="currentChatModel"
@@ -724,7 +808,7 @@ onUnmounted(() => {
               @update-value="(val) => handleSyncChatModel(val)"
             />
           </div>
-          <div class="p-4 flex gap-4">
+          <div v-if="images && images.length" class="p-4 flex gap-4">
             <div v-for="image in images" :key="image" class="flex items-center justify-center w-24 h-24 border border-dashed border-white overflow-hidden">
               <NImage :src="image" object-fit="contain" />
             </div>

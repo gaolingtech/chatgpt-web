@@ -6,7 +6,7 @@ import {
   fetchGetChatHistory,
   fetchGetChatRooms,
   fetchRenameChatRoom,
-  fetchUpdateChatRoomUsingContext
+  fetchUpdateChatRoomSetting
 } from '@/api'
 import { router } from '@/router'
 import { defineStore } from 'pinia'
@@ -16,7 +16,7 @@ export const useChatStore = defineStore('chat-store', {
   state: (): Chat.ChatState => getLocalState(),
 
   getters: {
-    getChatHistoryByCurrentActive(state: Chat.ChatState) {
+    getChatHistoryByCurrentActive(state: Chat.ChatState): Chat.History | null {
       const index = state.history.findIndex(item => item.uuid === state.active)
       if (index !== -1) {
         return state.history[index]
@@ -46,13 +46,22 @@ export const useChatStore = defineStore('chat-store', {
 
       for (const r of rooms) {
         this.history.unshift(r)
-        if (uuid == null) {
+        if (uuid === null) {
           uuid = r.uuid
         }
-        this.chat.unshift({ uuid: r.uuid, data: [] })
+        this.chat.unshift({
+          uuid: r.uuid,
+          data: []
+        })
       }
-      if (uuid == null) {
-        await this.addHistory({ title: 'New Chat', uuid: Date.now(), isEdit: false, usingContext: true })
+      if (uuid === null) {
+        await this.addHistory({
+          title: 'New Chat',
+          uuid: Date.now(),
+          isEdit: false,
+          usingContext: true,
+          usingImageGeneration: false
+        })
       } else {
         this.active = uuid
         this.reloadRoute(uuid)
@@ -60,9 +69,13 @@ export const useChatStore = defineStore('chat-store', {
       callback && callback()
     },
 
-    async syncChat(h: Chat.History, lastId?: number, callback?: () => void,
+    async syncChat(
+      h: Chat.History,
+      lastId?: number,
+      callback?: () => void,
       callbackForStartRequest?: () => void,
-      callbackForEmptyMessage?: () => void) {
+      callbackForEmptyMessage?: () => void
+    ) {
       if (!h.uuid) {
         callback && callback()
         return
@@ -89,7 +102,10 @@ export const useChatStore = defineStore('chat-store', {
           }
 
           if (chatIndex <= -1) {
-            this.chat.unshift({ uuid: h.uuid, data: chatData })
+            this.chat.unshift({
+              uuid: h.uuid,
+              data: chatData
+            })
           } else {
             this.chat[chatIndex].data.unshift(...chatData)
           }
@@ -104,15 +120,22 @@ export const useChatStore = defineStore('chat-store', {
       }
     },
 
-    async  setUsingContext(context: boolean, roomId: number) {
-      await fetchUpdateChatRoomUsingContext(context, roomId)
+    async setRoomSetting(roomId: number, usingContext?: boolean, usingImageGeneration?: boolean) {
+      await fetchUpdateChatRoomSetting({
+        usingContext,
+        usingImageGeneration,
+        roomId
+      })
       this.recordState()
     },
 
     async addHistory(history: Chat.History, chatData: Chat.Chat[] = []) {
       await fetchCreateChatRoom(history.title, history.uuid)
       this.history.unshift(history)
-      this.chat.unshift({ uuid: history.uuid, data: chatData })
+      this.chat.unshift({
+        uuid: history.uuid,
+        data: chatData
+      })
       this.active = history.uuid
       this.reloadRoute(history.uuid)
     },
@@ -134,7 +157,13 @@ export const useChatStore = defineStore('chat-store', {
       this.chat.splice(index, 1)
 
       if (this.history.length === 0) {
-        await this.addHistory({ title: 'New Chat', uuid: Date.now(), isEdit: false, usingContext: true })
+        await this.addHistory({
+          title: 'New Chat',
+          uuid: Date.now(),
+          isEdit: false,
+          usingContext: true,
+          usingImageGeneration: false
+        })
         return
       }
 
@@ -184,8 +213,17 @@ export const useChatStore = defineStore('chat-store', {
         if (this.history.length === 0) {
           const uuid = Date.now()
           fetchCreateChatRoom(chat.text, uuid)
-          this.history.push({ uuid, title: chat.text, isEdit: false, usingContext: true })
-          this.chat.push({ uuid, data: [chat] })
+          this.history.push({
+            uuid,
+            title: chat.text,
+            isEdit: false,
+            usingContext: true,
+            usingImageGeneration: false
+          })
+          this.chat.push({
+            uuid,
+            data: [chat]
+          })
           this.active = uuid
           this.recordState()
         } else {
@@ -291,7 +329,10 @@ export const useChatStore = defineStore('chat-store', {
 
     async reloadRoute(uuid?: number) {
       this.recordState()
-      await router.push({ name: 'Chat', params: { uuid } })
+      await router.push({
+        name: 'Chat',
+        params: { uuid }
+      })
     },
 
     recordState() {

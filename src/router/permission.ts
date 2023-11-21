@@ -1,6 +1,6 @@
-import {useUserStore} from '@/store'
-import {useAuthStoreWithout} from '@/store/modules/auth'
-import type {Router} from 'vue-router'
+import { useUserStore } from '@/store'
+import { useAuthStoreWithout } from '@/store/modules/auth'
+import type { Router } from 'vue-router'
 
 export function setupPageGuard(router: Router) {
   router.beforeEach(async (to, from, next) => {
