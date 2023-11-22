@@ -7,7 +7,7 @@ export function defaultState(): Chat.ChatState {
   return {
     active: uuid,
     usingContext: true,
-    history: [{ uuid, title: 'New Chat', isEdit: false, usingContext: true, usingImageGeneration: false }],
+    chatRooms: [{ uuid, title: 'New Chat', isEdit: false, usingContext: true, usingImageGeneration: false }],
     chat: [{ uuid, data: [] }],
   }
 }

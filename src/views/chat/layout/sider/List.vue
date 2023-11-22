@@ -15,7 +15,7 @@ const authStore = useAuthStoreWithout()
 
 const loadingRoom = ref(false)
 
-const dataSources = computed(() => chatStore.history)
+const dataSources = computed(() => chatStore.chatRooms)
 
 onMounted(async () => {
   if (authStore.session == null || !authStore.session.auth || authStore.token)
@@ -29,7 +29,7 @@ async function handleSyncChatRoom() {
     // 本来这里不需要的, 但是 vue 渲染的时候 chat 可能优先渲染等原因 导致概率不刷新
     if (chatStore.active) {
       const uuid = chatStore.active
-      chatStore.syncChat({ uuid } as Chat.History, undefined, () => {
+      chatStore.syncChat({ uuid } as Chat.ChatRoom, undefined, () => {
         const scrollRef = document.querySelector('#scrollRef')
         if (scrollRef)
           nextTick(() => scrollRef.scrollTop = scrollRef.scrollHeight)
@@ -38,7 +38,7 @@ async function handleSyncChatRoom() {
   })
 }
 
-async function handleSelect({ uuid }: Chat.History) {
+async function handleSelect({ uuid }: Chat.ChatRoom) {
   if (isActive(uuid))
     return
 
@@ -51,7 +51,7 @@ async function handleSelect({ uuid }: Chat.History) {
     appStore.setSiderCollapsed(true)
 }
 
-function handleEdit({ uuid }: Chat.History, isEdit: boolean, event?: MouseEvent) {
+function handleEdit({ uuid }: Chat.ChatRoom, isEdit: boolean, event?: MouseEvent) {
   event?.stopPropagation()
   chatStore.updateHistory(uuid, { isEdit })
 }
@@ -65,7 +65,7 @@ function handleDelete(index: number, event?: MouseEvent | TouchEvent) {
 
 const handleDeleteDebounce = debounce(handleDelete, 600)
 
-function handleEnter({ uuid }: Chat.History, isEdit: boolean, event: KeyboardEvent) {
+function handleEnter({ uuid }: Chat.ChatRoom, isEdit: boolean, event: KeyboardEvent) {
   event?.stopPropagation()
   if (event.key === 'Enter')
     chatStore.updateHistory(uuid, { isEdit })

@@ -23,7 +23,7 @@ const appStore = useAppStore()
 const chatStore = useChatStore()
 
 const collapsed = computed(() => appStore.siderCollapsed)
-const currentChatHistory = computed(() => chatStore.getChatHistoryByCurrentActive)
+const currentChatHistory = computed(() => chatStore.getActiveChatRoom)
 
 function handleUpdateCollapsed() {
   appStore.setSiderCollapsed(!collapsed.value)
@@ -31,8 +31,9 @@ function handleUpdateCollapsed() {
 
 function onScrollToTop() {
   const scrollRef = document.querySelector('#scrollRef')
-  if (scrollRef)
+  if (scrollRef) {
     nextTick(() => scrollRef.scrollTop = 0)
+  }
 }
 
 function handleExport() {

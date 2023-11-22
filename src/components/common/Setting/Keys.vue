@@ -5,7 +5,7 @@ import { t } from '@/locales'
 import { useAuthStore } from '@/store'
 import { NButton, NDataTable, NInput, NModal, NSelect, NSpace, NSwitch, NTag, useDialog, useMessage } from 'naive-ui'
 import { h, onMounted, reactive, ref } from 'vue'
-import type { CHATMODEL } from './model'
+import type { ChatModel } from './model'
 import { apiModelOptions, KeyConfig, Status, UserRole, userRoleOptions } from './model'
 
 const ms = useMessage()
@@ -39,7 +39,7 @@ const columns = [
     key: 'chatModels',
     width: 320,
     render(row: any) {
-      const tags = row.chatModels.map((chatModel: CHATMODEL) => {
+      const tags = row.chatModels.map((chatModel: ChatModel) => {
         return h(
           NTag,
           {

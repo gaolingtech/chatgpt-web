@@ -4,7 +4,7 @@ export class ConfigState {
   accessToken?: string
   accessTokenExpiredTime?: string
   apiBaseUrl?: string
-  apiModel?: APIMODEL
+  apiModel?: ApiModel
   reverseProxy?: string
   socksProxy?: string
   socksAuth?: string
@@ -16,10 +16,11 @@ export class ConfigState {
 }
 
 // https://platform.openai.com/docs/models/overview
-export type CHATMODEL = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-0301' | 'gpt-3.5-turbo-0613' | 'gpt-3.5-turbo-16k' | 'gpt-3.5-turbo-16k-0613' | 'gpt-4' | 'gpt-4-0314' | 'gpt-4-32k' | 'gpt-4-32k-0314' | 'gpt-4-0613' | 'gpt-4-32k-0613' | 'text-davinci-002-render-sha-mobile' | 'text-embedding-ada-002' | 'gpt-4-mobile' | 'gpt-4-browsing' | 'gpt-4-1106-preview' | 'gpt-4-vision-preview'
+// export type ChatModel = 'gpt-3.5-turbo' | 'gpt-3.5-turbo-0301' | 'gpt-3.5-turbo-0613' | 'gpt-3.5-turbo-16k' | 'gpt-3.5-turbo-16k-0613' | 'gpt-4' | 'gpt-4-0314' | 'gpt-4-32k' | 'gpt-4-32k-0314' | 'gpt-4-0613' | 'gpt-4-32k-0613' | 'text-davinci-002-render-sha-mobile' | 'text-embedding-ada-002' | 'gpt-4-mobile' | 'gpt-4-browsing' | 'gpt-4-1106-preview' | 'gpt-4-vision-preview'
+export type ChatModel = string
 
 export class UserConfig {
-  chatModel?: CHATMODEL
+  chatModel?: ChatModel
 }
 
 export class SiteConfig {
@@ -87,12 +88,12 @@ export enum UserRole {
 export class KeyConfig {
   _id?: string
   key: string
-  keyModel: APIMODEL
-  chatModels: CHATMODEL[]
+  keyModel: ApiModel
+  chatModels: ChatModel[]
   userRoles: UserRole[]
   status: Status
   remark: string
-  constructor(key: string, keyModel: APIMODEL, chatModels: CHATMODEL[], userRoles: UserRole[], remark: string) {
+  constructor(key: string, keyModel: ApiModel, chatModels: ChatModel[], userRoles: UserRole[], remark: string) {
     this.key = key
     this.keyModel = keyModel
     this.chatModels = chatModels
@@ -102,7 +103,7 @@ export class KeyConfig {
   }
 }
 
-export type APIMODEL = 'ChatGPTAPI' | 'ChatGPTUnofficialProxyAPI' | undefined
+export type ApiModel = 'ChatGPTAPI' | 'ChatGPTUnofficialProxyAPI' | undefined
 
 export const apiModelOptions = ['ChatGPTAPI', 'ChatGPTUnofficialProxyAPI'].map((model: string) => {
   return {

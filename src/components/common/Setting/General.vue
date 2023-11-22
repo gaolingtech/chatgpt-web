@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
-import { NButton, NInput, NPopconfirm, NSelect, useMessage } from 'naive-ui'
-import type { Language, Theme } from '@/store/modules/app/helper'
+import { ChatAPI } from '@/api'
 import { SvgIcon } from '@/components/common'
-import { useAppStore, useUserStore } from '@/store'
-import type { UserInfo } from '@/store/modules/user/helper'
-import { getCurrentDate } from '@/utils/functions'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import { t } from '@/locales'
-import { fetchClearAllChat } from '@/api'
+import { useAppStore, useUserStore } from '@/store'
+import type { Language, Theme } from '@/store/modules/app/helper'
+import type { UserInfo } from '@/store/modules/user/helper'
+import { getCurrentDate } from '@/utils/functions'
+import { NButton, NInput, NPopconfirm, NSelect, useMessage } from 'naive-ui'
+import { computed, ref } from 'vue'
 
 const appStore = useAppStore()
 const userStore = useUserStore()
@@ -82,12 +82,14 @@ function exportData(): void {
 
 function importData(event: Event): void {
   const target = event.target as HTMLInputElement
-  if (!target || !target.files)
+  if (!target || !target.files) {
     return
+  }
 
   const file: File = target.files[0]
-  if (!file)
+  if (!file) {
     return
+  }
 
   const reader: FileReader = new FileReader()
   reader.onload = () => {
@@ -96,8 +98,7 @@ function importData(event: Event): void {
       localStorage.setItem('chatStorage', JSON.stringify(data))
       ms.success(t('common.success'))
       location.reload()
-    }
-    catch (error) {
+    } catch (error) {
       ms.error(t('common.invalidFileFormat'))
     }
   }
@@ -105,15 +106,16 @@ function importData(event: Event): void {
 }
 
 async function clearData(): Promise<void> {
-  await fetchClearAllChat()
+  await ChatAPI.clearAllChats()
   localStorage.removeItem('chatStorage')
   location.reload()
 }
 
 function handleImportButtonClick(): void {
   const fileInput = document.getElementById('fileInput') as HTMLElement
-  if (fileInput)
+  if (fileInput) {
     fileInput.click()
+  }
 }
 </script>
 
@@ -123,19 +125,19 @@ function handleImportButtonClick(): void {
       <div class="flex items-center space-x-4">
         <span class="flex-shrink-0 w-[100px]">{{ $t('setting.name') }}</span>
         <div class="w-[200px]">
-          <NInput v-model:value="name" placeholder="" />
+          <NInput v-model="name" placeholder="" />
         </div>
       </div>
       <div class="flex items-center space-x-4">
         <span class="flex-shrink-0 w-[100px]">{{ $t('setting.description') }}</span>
         <div class="flex-1">
-          <NInput v-model:value="description" placeholder="" />
+          <NInput v-model="description" placeholder="" />
         </div>
       </div>
       <div class="flex items-center space-x-4">
         <span class="flex-shrink-0 w-[100px]">{{ $t('setting.avatarLink') }}</span>
         <div class="flex-1">
-          <NInput v-model:value="avatar" placeholder="" />
+          <NInput v-model="avatar" placeholder="" />
         </div>
       </div>
       <div
@@ -176,17 +178,17 @@ function handleImportButtonClick(): void {
       <div class="flex items-center space-x-4">
         <span class="flex-shrink-0 w-[100px]">{{ $t('setting.theme') }}</span>
         <div class="flex flex-wrap items-center gap-4">
-          <template v-for="item of themeOptions" :key="item.key">
-            <NButton
-              size="small"
-              :type="item.key === theme ? 'primary' : undefined"
-              @click="appStore.setTheme(item.key)"
-            >
-              <template #icon>
-                <SvgIcon :icon="item.icon" />
-              </template>
-            </NButton>
-          </template>
+          <NButton
+            v-for="item of themeOptions"
+            :key="item.key"
+            size="small"
+            :type="item.key === theme ? 'primary' : 'default'"
+            @click="appStore.setTheme(item.key)"
+          >
+            <template #icon>
+              <SvgIcon :icon="item.icon" />
+            </template>
+          </NButton>
         </div>
       </div>
       <div class="flex items-center space-x-4">

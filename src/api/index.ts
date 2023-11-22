@@ -1,6 +1,6 @@
 import type {
   AuditConfig,
-  CHATMODEL,
+  ChatModel,
   ConfigState,
   KeyConfig,
   MailConfig,
@@ -9,67 +9,11 @@ import type {
   UserInfo,
   UserPassword
 } from '@/components/common/Setting/model'
-import { useAuthStore, useSettingStore } from '@/store'
 import { get, post } from '@/utils/request'
-import type { AxiosProgressEvent, GenericAbortSignal } from 'axios'
 
 export function fetchChatConfig<T = any>() {
   return post<T>({
     url: '/config',
-  })
-}
-
-export function fetchChatAPIProcess(
-  params: {
-    roomId: number
-    uuid: number
-    regenerate?: boolean
-    prompt: string
-		images?: string[]
-    options?: { conversationId?: string; parentMessageId?: string }
-    signal?: GenericAbortSignal
-    onDownloadProgress?: (progressEvent: AxiosProgressEvent) => void },
-) {
-  const settingStore = useSettingStore()
-  const authStore = useAuthStore()
-
-  let data: Record<string, any> = {
-    roomId: params.roomId,
-    uuid: params.uuid,
-    regenerate: params.regenerate || false,
-    prompt: params.prompt,
-    images: params.images,
-    options: params.options,
-  }
-
-  if (authStore.isChatGPTAPI) {
-    data = {
-      ...data,
-      systemMessage: settingStore.systemMessage,
-      temperature: settingStore.temperature,
-      top_p: settingStore.top_p,
-    }
-  }
-
-  return post<Chat.ConversationResponse | Chat.ImageGenerationResponse>({
-    url: '/chat-process',
-    data,
-    signal: params.signal,
-    onDownloadProgress: params.onDownloadProgress,
-  })
-}
-
-export function fetchChatStopResponding<T = any>(text: string, messageId: string, conversationId: string) {
-  return post<T>({
-    url: '/chat-abort',
-    data: { text, messageId, conversationId },
-  })
-}
-
-export function fetchChatResponseoHistory<T = any>(roomId: number, uuid: number, index: number) {
-  return get<T>({
-    url: '/chat-response-history',
-    data: { roomId, uuid, index },
   })
 }
 
@@ -128,7 +72,7 @@ export function fetchUpdateUserInfo<T = any>(name: string, avatar: string, descr
   })
 }
 
-export function fetchUpdateUserChatModel<T = any>(chatModel: CHATMODEL) {
+export function fetchUpdateUserChatModel<T = any>(chatModel: ChatModel) {
   return post<T>({
     url: '/user-chat-model',
     data: { chatModel },
@@ -187,76 +131,6 @@ export function fetchUpdateUserPassword<T = any>(pwd: UserPassword) {
   return post<T>({
     url: '/user-password',
     data: pwd,
-  })
-}
-
-export function fetchGetChatRooms<T = any>() {
-  return get<T>({
-    url: '/chatrooms',
-  })
-}
-
-export function fetchCreateChatRoom<T = any>(title: string, roomId: number) {
-  return post<T>({
-    url: '/room-create',
-    data: { title, roomId },
-  })
-}
-
-export function fetchRenameChatRoom<T = any>(title: string, roomId: number) {
-  return post<T>({
-    url: '/room-rename',
-    data: { title, roomId },
-  })
-}
-
-export function fetchUpdateChatRoomPrompt<T = any>(prompt: string, roomId: number) {
-  return post<T>({
-    url: '/room-prompt',
-    data: { prompt, roomId },
-  })
-}
-
-export function fetchUpdateChatRoomSetting<T = any>(
-  data: { roomId: number, usingContext?: boolean, usingImageGeneration?: boolean }
-) {
-  return post<T>({
-    url: '/room-setting',
-    data
-  })
-}
-
-export function fetchDeleteChatRoom<T = any>(roomId: number) {
-  return post<T>({
-    url: '/room-delete',
-    data: { roomId },
-  })
-}
-
-export function fetchGetChatHistory<T = any>(roomId: number, lastId?: number) {
-  return get<T>({
-    url: `/chat-history?roomId=${roomId}&lastId=${lastId}`,
-  })
-}
-
-export function fetchClearAllChat<T = any>() {
-  return post<T>({
-    url: '/chat-clear-all',
-    data: { },
-  })
-}
-
-export function fetchClearChat<T = any>(roomId: number) {
-  return post<T>({
-    url: '/chat-clear',
-    data: { roomId },
-  })
-}
-
-export function fetchDeleteChat<T = any>(roomId: number, uuid: number, inversion?: boolean) {
-  return post<T>({
-    url: '/chat-delete',
-    data: { roomId, uuid, inversion },
   })
 }
 
@@ -342,3 +216,6 @@ export function fetchUploadImage(file: File) {
     }
   })
 }
+
+export { RoomAPI } from './room'
+export { ChatAPI } from './chat'

@@ -1,19 +1,13 @@
 <script setup lang='ts'>
-import {
-  fetchChatAPIProcess,
-  fetchChatResponseoHistory,
-  fetchChatStopResponding,
-  fetchUpdateUserChatModel,
-  fetchUploadImage
-} from '@/api'
+import { ChatAPI, fetchUploadImage } from '@/api'
 import { HoverButton, SvgIcon } from '@/components/common'
-import type { CHATMODEL } from '@/components/common/Setting/model'
-import { UserConfig } from '@/components/common/Setting/model'
+import type { ChatModel } from '@/components/common/Setting/model'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
 import IconPrompt from '@/icons/Prompt.vue'
 import { t } from '@/locales'
 import { useAuthStore, useChatStore, usePromptStore, useUserStore } from '@/store'
 import { debounce } from '@/utils/functions/debounce'
+import { AxiosProgressEvent } from "axios";
 import html2canvas from 'html2canvas'
 import type { MessageReactive } from 'naive-ui'
 import { NAutoComplete, NButton, NImage, NInput, NSelect, NSpace, NSpin, NUpload, useDialog, useMessage } from 'naive-ui'
@@ -41,7 +35,7 @@ const userStore = useUserStore()
 const chatStore = useChatStore()
 
 const { isMobile } = useBasicLayout()
-const { addChat, updateChat, updateChatSome, getChatByUuidAndIndex } = useChat()
+const { addChat, updateChat, updateChatPartial, getChatByUuidAndIndex } = useChat()
 const { scrollRef, scrollToBottom, scrollToBottomIfAtBottom, scrollTo } = useScroll()
 
 const { uuid } = route.params as { uuid: string }
@@ -52,17 +46,19 @@ const images = ref<string[]>([])
 const loading = ref<boolean>(false)
 const inputRef = ref<Ref | null>(null)
 const firstLoading = ref<boolean>(false)
-const nowSelectChatModel = ref<CHATMODEL | null>(null)
+const nowSelectChatModel = ref<ChatModel | null>(null)
 
 const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
-const currentChatHistory = computed(() => chatStore.getChatHistoryByCurrentActive)
-const usingContext = computed(() => currentChatHistory?.value?.usingContext ?? true)
-const usingImageGeneration = computed(() => currentChatHistory?.value?.usingImageGeneration || false)
-const conversationList = computed(() => dataSources.value.filter(item => (!item.inversion && !!item.conversationOptions)))
-const currentChatModel = computed(() => nowSelectChatModel.value ?? currentChatHistory.value?.chatModel ?? userStore.userInfo.config.chatModel)
+const activeChatRoom = computed(() => chatStore.getActiveChatRoom)
 
-let loadingms: MessageReactive
-let allmsg: MessageReactive
+const usingContext = computed(() => activeChatRoom?.value?.usingContext ?? true)
+const usingImageGeneration = computed(() => activeChatRoom?.value?.usingImageGeneration || false)
+
+const conversationList = computed(() => dataSources.value.filter(item => (!item.inversion && !!item.conversationOptions)))
+const currentChatModel = computed(() => nowSelectChatModel.value ?? activeChatRoom.value?.chatModel)
+
+let loadingMsg: MessageReactive
+let allMsg: MessageReactive
 let prevScrollTop: number
 
 const { promptList: promptTemplate } = storeToRefs<any>(usePromptStore())
@@ -70,123 +66,122 @@ const { promptList: promptTemplate } = storeToRefs<any>(usePromptStore())
 // 未知原因刷新页面，loading 状态不会重置，手动重置
 dataSources.value.forEach((item, index) => {
   if (item.loading) {
-    updateChatSome(+uuid, index, { loading: false })
+    updateChatPartial(+uuid, index, { loading: false })
   }
 })
 
-async function handleChatCompletionResponse(chatUuid: number, message: string, options: Chat.ConversationRequest) {
+async function handleChatCompletionResponse(chatUuid: number, message: string, options: Chat.ConversationRequest, regenerate?: boolean) {
   let lastText = ''
+
+  const handlePartialResponse = ({ event: { target: { responseText } } }: AxiosProgressEvent) => {
+    // Always process the final line
+    const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
+    let chunk = responseText
+    if (lastIndex !== -1) {
+      chunk = responseText.substring(lastIndex)
+    }
+    try {
+      const data = JSON.parse(chunk)
+      lastChatInfo = data
+
+      const usage = (data.detail && data.detail.usage)
+        ? {
+          completion_tokens: data.detail.usage.completion_tokens || null,
+          prompt_tokens: data.detail.usage.prompt_tokens || null,
+          total_tokens: data.detail.usage.total_tokens || null,
+          estimated: data.detail.usage.estimated || null,
+        }
+        : undefined
+
+      updateChatPartial(
+        +uuid,
+        dataSources.value.length - 1,
+        {
+          text: lastText + (data.text ?? ''),
+        },
+      )
+
+      if (openLongReply && data.detail && data.detail.choices.length > 0 && data.detail.choices[0].finish_reason === 'length') {
+        options.parentMessageId = data.id
+        lastText = data.text
+        message = ''
+        return fetchChatAPIOnce()
+      }
+
+      scrollToBottomIfAtBottom()
+    } catch (error) {
+      //
+    }
+  }
+
   const fetchChatAPIOnce = async () => {
-    await fetchChatAPIProcess({
+    await ChatAPI.processChat({
+      options,
       roomId: +uuid,
       uuid: chatUuid,
       prompt: message,
       images: images.value,
-      options,
       signal: controller.signal,
-      onDownloadProgress: ({ event: { target: { responseText } } }) => {
-        // const { responseText } = xhr
-        // Always process the final line
-        const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
-        let chunk = responseText
-        if (lastIndex !== -1) {
-          chunk = responseText.substring(lastIndex)
-        }
-        try {
-          const data = JSON.parse(chunk)
-          lastChatInfo = data
-          const usage = (data.detail && data.detail.usage)
-            ? {
-              completion_tokens: data.detail.usage.completion_tokens || null,
-              prompt_tokens: data.detail.usage.prompt_tokens || null,
-              total_tokens: data.detail.usage.total_tokens || null,
-              estimated: data.detail.usage.estimated || null,
-            }
-            : undefined
-          updateChat(
-            +uuid,
-            dataSources.value.length - 1,
-            {
-              dateTime: new Date().toLocaleString(),
-              text: lastText + (data.text ?? ''),
-              inversion: false,
-              error: false,
-              loading: true,
-              conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
-              requestOptions: { prompt: message, options: { ...options } },
-              usage,
-            },
-          )
-
-          if (openLongReply && data.detail && data.detail.choices.length > 0 && data.detail.choices[0].finish_reason === 'length') {
-            options.parentMessageId = data.id
-            lastText = data.text
-            message = ''
-            return fetchChatAPIOnce()
-          }
-
-          scrollToBottomIfAtBottom()
-        } catch (error) {
-          //
-        }
-      },
+      regenerate,
+      onDownloadProgress: handlePartialResponse,
     })
-    updateChatSome(+uuid, dataSources.value.length - 1, { loading: false })
+    updateChatPartial(+uuid, dataSources.value.length - 1, { loading: false })
   }
 
   await fetchChatAPIOnce()
 }
 
-async function handleImageGenerationResponse(chatUuid: number, message: string, options: Chat.ConversationRequest) {
-  const response = await fetchChatAPIProcess({
+async function handleImageGenerationResponse(chatUuid: number, message: string, options: Chat.ConversationRequest, regenerate?: boolean) {
+  const response = await ChatAPI.processChat({
+    options,
     roomId: +uuid,
     uuid: chatUuid,
     prompt: message,
     images: images.value,
-    options,
     signal: controller.signal,
+    regenerate,
   })
 
-  const data: Chat.ImageGenerationResponse = response.data as Chat.ImageGenerationResponse
+  const imageGenerationResponse: Chat.ImageGenerationResponse = response.data as Chat.ImageGenerationResponse
 
-  lastChatInfo = data
-  updateChat(
-    +uuid,
-    dataSources.value.length - 1,
-    {
-      dateTime: new Date().toLocaleString(),
-      text: '',
-      images: data.data.map(o => o.url),
-      inversion: false,
-      error: false,
-      loading: true,
-      conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
-      requestOptions: { prompt: message, options: { ...options } },
-      usage: undefined,
+  lastChatInfo = imageGenerationResponse
+
+  updateChatPartial(+uuid, dataSources.value.length - 1, {
+    dateTime: new Date().toLocaleString(),
+    text: '',
+    images: imageGenerationResponse.data.map(o => o.url),
+    inversion: false,
+    error: false,
+    loading: true,
+    conversationOptions: {
+      conversationId: imageGenerationResponse.conversationId,
+      parentMessageId: undefined
     },
-  )
+    requestOptions: {
+      prompt: message,
+      options: { ...options }
+    },
+    usage: undefined,
+  })
 
-  scrollToBottomIfAtBottom()
+  await scrollToBottomIfAtBottom()
 
-  updateChatSome(+uuid, dataSources.value.length - 1, { loading: false })
+  updateChatPartial(+uuid, dataSources.value.length - 1, { loading: false })
 }
 
 async function handleSubmit() {
-  let message = prompt.value
-
   if (loading.value) {
     return
   }
 
+  controller = new AbortController()
+
+  let message = prompt.value
+  let options: Chat.ConversationRequest = {}
+
   if (!message || message.trim() === '') {
     return
   }
-
-  if (nowSelectChatModel.value && currentChatHistory.value) {
-    currentChatHistory.value.chatModel = nowSelectChatModel.value
-  }
-
-  controller = new AbortController()
 
   const chatUuid = Date.now()
   addChat(
@@ -202,12 +197,11 @@ async function handleSubmit() {
       requestOptions: { prompt: message, options: null },
     },
   )
-  scrollToBottom()
+  await scrollToBottom()
 
   loading.value = true
   prompt.value = ''
 
-  let options: Chat.ConversationRequest = {}
   const lastContext = conversationList.value[conversationList.value.length - 1]?.conversationOptions
 
   if (lastContext && usingContext.value) {
@@ -227,20 +221,20 @@ async function handleSubmit() {
       requestOptions: { prompt: message, options: { ...options } },
     },
   )
-  scrollToBottom()
+  await scrollToBottom()
 
   try {
     if (usingImageGeneration.value) {
-      handleImageGenerationResponse(chatUuid, message, options)
+      return handleImageGenerationResponse(chatUuid, message, options)
     } else {
-      handleChatCompletionResponse(chatUuid, message, options)
+      return handleChatCompletionResponse(chatUuid, message, options)
     }
   } catch (error: any) {
-    console.warn(error)
+    console.warn({ error })
     const errorMessage = error?.message ?? t('common.wrong')
 
     if (error.message === 'canceled') {
-      updateChatSome(
+      updateChatPartial(
         +uuid,
         dataSources.value.length - 1,
         {
@@ -254,7 +248,7 @@ async function handleSubmit() {
     const currentChat = getChatByUuidAndIndex(+uuid, dataSources.value.length - 1)
 
     if (currentChat?.text && currentChat.text !== '') {
-      updateChatSome(
+      updateChatPartial(
         +uuid,
         dataSources.value.length - 1,
         {
@@ -286,7 +280,7 @@ async function handleSubmit() {
   }
 }
 
-async function onRegenerate(index: number) {
+async function handleRegenerate(index: number) {
   if (loading.value) {
     return
   }
@@ -294,11 +288,10 @@ async function onRegenerate(index: number) {
   controller = new AbortController()
 
   const { requestOptions } = dataSources.value[index]
-  let responseCount = dataSources.value[index].responseCount || 1
-  responseCount++
+  const responseCount = (dataSources.value[index].responseCount || 1) + 1
 
+  // let message = prompt.value
   let message = requestOptions?.prompt ?? ''
-
   let options: Chat.ConversationRequest = {}
 
   if (requestOptions.options) {
@@ -306,7 +299,8 @@ async function onRegenerate(index: number) {
   }
 
   loading.value = true
-  const chatUuid = dataSources.value[index].uuid
+  const chatUuid = dataSources.value[index].uuid!
+
   updateChat(
     +uuid,
     index,
@@ -323,68 +317,74 @@ async function onRegenerate(index: number) {
   )
 
   try {
-    let lastText = ''
-    const fetchChatAPIOnce = async () => {
-      await fetchChatAPIProcess({
-        roomId: +uuid,
-        uuid: chatUuid || Date.now(),
-        regenerate: true,
-        prompt: message,
-        options,
-        signal: controller.signal,
-        onDownloadProgress: ({ event }) => {
-          const xhr = event.target
-          const { responseText } = xhr
-          // Always process the final line
-          const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
-          let chunk = responseText
-          if (lastIndex !== -1) {
-            chunk = responseText.substring(lastIndex)
-          }
-          try {
-            const data = JSON.parse(chunk)
-            lastChatInfo = data
-            const usage = (data.detail && data.detail.usage)
-              ? {
-                completion_tokens: data.detail.usage.completion_tokens || null,
-                prompt_tokens: data.detail.usage.prompt_tokens || null,
-                total_tokens: data.detail.usage.total_tokens || null,
-                estimated: data.detail.usage.estimated || null,
-              }
-              : undefined
-            updateChat(
-              +uuid,
-              index,
-              {
-                dateTime: new Date().toLocaleString(),
-                text: lastText + (data.text ?? ''),
-                inversion: false,
-                responseCount,
-                error: false,
-                loading: true,
-                conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
-                requestOptions: { prompt: message, options: { ...options } },
-                usage,
-              },
-            )
+    // let lastText = ''
+    // const fetchChatAPIOnce = async () => {
+    //   await fetchChatAPIProcess({
+    //     roomId: +uuid,
+    //     uuid: chatUuid || Date.now(),
+    //     regenerate: true,
+    //     prompt: message,
+    //     options,
+    //     signal: controller.signal,
+    //     onDownloadProgress: ({ event }) => {
+    //       const xhr = event.target
+    //       const { responseText } = xhr
+    //       // Always process the final line
+    //       const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
+    //       let chunk = responseText
+    //       if (lastIndex !== -1) {
+    //         chunk = responseText.substring(lastIndex)
+    //       }
+    //       try {
+    //         const data = JSON.parse(chunk)
+    //         lastChatInfo = data
+    //         const usage = (data.detail && data.detail.usage)
+    //           ? {
+    //             completion_tokens: data.detail.usage.completion_tokens || null,
+    //             prompt_tokens: data.detail.usage.prompt_tokens || null,
+    //             total_tokens: data.detail.usage.total_tokens || null,
+    //             estimated: data.detail.usage.estimated || null,
+    //           }
+    //           : undefined
+    //         updateChat(
+    //           +uuid,
+    //           index,
+    //           {
+    //             dateTime: new Date().toLocaleString(),
+    //             text: lastText + (data.text ?? ''),
+    //             inversion: false,
+    //             responseCount,
+    //             error: false,
+    //             loading: true,
+    //             conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
+    //             requestOptions: { prompt: message, options: { ...options } },
+    //             usage,
+    //           },
+    //         )
+    //
+    //         if (openLongReply && data.detail && data.detail.choices.length > 0 && data.detail.choices[0].finish_reason === 'length') {
+    //           options.parentMessageId = data.id
+    //           lastText = data.text
+    //           message = ''
+    //           return fetchChatAPIOnce()
+    //         }
+    //       } catch (error) {
+    //         //
+    //       }
+    //     },
+    //   })
+    //   updateChatPartial(+uuid, index, { loading: false })
+    // }
+    // await fetchChatAPIOnce()
 
-            if (openLongReply && data.detail && data.detail.choices.length > 0 && data.detail.choices[0].finish_reason === 'length') {
-              options.parentMessageId = data.id
-              lastText = data.text
-              message = ''
-              return fetchChatAPIOnce()
-            }
-          } catch (error) {
-            //
-          }
-        },
-      })
-      updateChatSome(+uuid, index, { loading: false })
+    if (usingImageGeneration.value) {
+      return handleImageGenerationResponse(chatUuid, message, options, true)
+    } else {
+      return handleChatCompletionResponse(chatUuid, message, options, true)
     }
-    await fetchChatAPIOnce()
   } catch (error: any) {
     if (error.message === 'canceled') {
-      updateChatSome(
+      updateChatPartial(
         +uuid,
         index,
         {
@@ -416,20 +416,25 @@ async function onRegenerate(index: number) {
 }
 
 async function onResponseHistory(index: number, historyIndex: number) {
-  const chat = (await fetchChatResponseoHistory(+uuid, dataSources.value[index].uuid || Date.now(), historyIndex)).data
+  updateChatPartial(
+    +uuid,
+    index,
+    {
+      loading: true,
+      text: '',
+      images: []
+    },
+  )
+
+  const chat = (await ChatAPI.getHistoricalResponses(+uuid, dataSources.value[index].uuid || Date.now(), historyIndex)).data
+
   updateChat(
     +uuid,
     index,
     {
-      dateTime: chat.dateTime,
-      text: chat.text,
+      ...chat,
       inversion: false,
-      responseCount: chat.responseCount,
-      error: true,
       loading: false,
-      conversationOptions: chat.conversationOptions,
-      requestOptions: { prompt: chat.requestOptions.prompt, options: { ...chat.requestOptions.options } },
-      usage: chat.usage,
     },
   )
 }
@@ -526,7 +531,7 @@ async function handleStop() {
   if (loading.value) {
     controller.abort()
     loading.value = false
-    await fetchChatStopResponding(lastChatInfo.text, lastChatInfo.id, lastChatInfo.conversationId)
+    await ChatAPI.abortChat(lastChatInfo.text, lastChatInfo.id, lastChatInfo.conversationId)
   }
 }
 
@@ -539,18 +544,18 @@ async function loadMoreMessage(event: any) {
   const scrollPosition = event.target.scrollHeight - event.target.scrollTop
 
   const lastId = chatStore.chat[chatIndex].data[0].uuid
-  await chatStore.syncChat({ uuid: +uuid } as Chat.History, lastId, () => {
-    loadingms && loadingms.destroy()
+  await chatStore.syncChat({ uuid: +uuid } as Chat.ChatRoom, lastId, () => {
+    loadingMsg && loadingMsg.destroy()
     nextTick(() => scrollTo(event.target.scrollHeight - scrollPosition))
   }, () => {
-    loadingms = ms.loading(
+    loadingMsg = ms.loading(
       '加载中...', {
         duration: 0,
       },
     )
   }, () => {
-    allmsg && allmsg.destroy()
-    allmsg = ms.warning('没有更多了', {
+    allMsg && allMsg.destroy()
+    allMsg = ms.warning('没有更多了', {
       duration: 1000,
     })
   })
@@ -560,7 +565,7 @@ const handleLoadMoreMessage = debounce(loadMoreMessage, 300)
 const handleSyncChat
   = debounce(() => {
     // 直接刷 极小概率不请求
-    chatStore.syncChat({ uuid: Number(uuid) } as Chat.History, undefined, () => {
+    chatStore.syncChat({ uuid: Number(uuid) } as Chat.ChatRoom, undefined, () => {
       firstLoading.value = false
       const scrollRef = document.querySelector('#scrollRef')
       if (scrollRef) {
@@ -581,17 +586,17 @@ async function handleScroll(event: any) {
 }
 
 async function handleToggleUsingContext() {
-  if (!currentChatHistory.value) {
+  if (!activeChatRoom.value) {
     return
   }
 
-  currentChatHistory.value.usingContext = !currentChatHistory.value.usingContext
+  activeChatRoom.value.usingContext = !activeChatRoom.value.usingContext
   chatStore.setRoomSetting(
     +uuid,
-    currentChatHistory.value.usingContext,
+    activeChatRoom.value.usingContext,
     undefined
   )
-  if (currentChatHistory.value.usingContext) {
+  if (activeChatRoom.value.usingContext) {
     ms.success(t('chat.turnOnContext'))
   } else {
     ms.warning(t('chat.turnOffContext'))
@@ -599,18 +604,18 @@ async function handleToggleUsingContext() {
 }
 
 async function handleToggleUsingImageGeneration() {
-  if (!currentChatHistory.value) {
+  if (!activeChatRoom.value) {
     return
   }
 
-  currentChatHistory.value.usingImageGeneration = !currentChatHistory.value.usingImageGeneration
+  activeChatRoom.value.usingImageGeneration = !activeChatRoom.value.usingImageGeneration
   chatStore.setRoomSetting(
     +uuid,
     undefined,
-    currentChatHistory.value?.usingImageGeneration,
+    activeChatRoom.value?.usingImageGeneration,
   )
 
-  if (currentChatHistory.value?.usingImageGeneration) {
+  if (activeChatRoom.value?.usingImageGeneration) {
     ms.success(t('chat.turnOnImageGeneration'))
   } else {
     ms.warning(t('chat.turnOffImageGeneration'))
@@ -662,15 +667,10 @@ const footerClass = computed(() => {
   return classes
 })
 
-async function handleSyncChatModel(chatModel: CHATMODEL) {
+async function handleChatModelChange(chatModel: ChatModel) {
   nowSelectChatModel.value = chatModel
-  if (!userStore.userInfo.config) {
-    userStore.userInfo.config = new UserConfig()
-  }
 
-  userStore.userInfo.config.chatModel = chatModel
-  userStore.recordState()
-  await fetchUpdateUserChatModel(chatModel)
+  return chatStore.updateChatModel(Number(uuid), chatModel);
 }
 
 const handleUpload = async (event: any) => {
@@ -739,7 +739,7 @@ onUnmounted(() => {
                   :usage="item && item.usage || undefined"
                   :error="item.error"
                   :loading="item.loading"
-                  @regenerate="onRegenerate(index)"
+                  @regenerate="handleRegenerate(index)"
                   @delete="handleDelete(index)"
                   @response-history="(ev) => onResponseHistory(index, ev)"
                 />
@@ -805,7 +805,7 @@ onUnmounted(() => {
               :value="currentChatModel"
               :options="authStore.session?.chatModels"
               :disabled="!!authStore.session?.auth && !authStore.token"
-              @update-value="(val) => handleSyncChatModel(val)"
+              @update-value="(val) => handleChatModelChange(val)"
             />
           </div>
           <div v-if="images && images.length" class="p-4 flex gap-4">

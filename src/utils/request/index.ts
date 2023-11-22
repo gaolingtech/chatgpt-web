@@ -25,6 +25,7 @@ function http<T = any>(
   const successHandler = (res: AxiosResponse<Response<T>>) => {
     const authStore = useAuthStore()
 
+    console.log(res)
     if (res.data.status === 'Success' || typeof res.data === 'string') {
       return res.data
     }
@@ -33,7 +34,7 @@ function http<T = any>(
       authStore.removeToken()
     }
 
-    return Promise.reject(res.data)
+    return Promise.reject(res.data.message)
   }
 
   const failHandler = (error: Response<Error>) => {

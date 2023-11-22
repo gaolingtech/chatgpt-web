@@ -1,5 +1,5 @@
 declare namespace Chat {
-  import { CHATMODEL } from "@/components/common/Setting/model"
+  import { ChatModel } from "@/components/common/Setting/model"
 
   interface Chat {
     uuid?: number
@@ -20,7 +20,7 @@ declare namespace Chat {
     }
   }
 
-  interface History {
+  interface ChatRoom {
     title: string
     isEdit: boolean
     uuid: number
@@ -29,13 +29,13 @@ declare namespace Chat {
     prompt?: string
 		usingContext: boolean
 		usingImageGeneration: boolean
-    chatModel?: CHATMODEL
+    chatModel?: ChatModel
   }
 
   interface ChatState {
     active: number | null
     usingContext: boolean;
-    history: History[]
+    chatRooms: ChatRoom[]
     chat: { uuid: number; data: Chat[] }[]
   }
 

@@ -1,11 +1,11 @@
 <script setup lang='ts'>
-import {SvgIcon} from '@/components/common'
-import {useBasicLayout} from '@/hooks/useBasicLayout'
-import {useIconRender} from '@/hooks/useIconRender'
-import {t} from '@/locales'
-import {copyToClip} from '@/utils/copy'
-import {NButton, NButtonGroup, NDropdown, NPopover, NSpace, useMessage} from 'naive-ui'
-import {computed, ref} from 'vue'
+import { SvgIcon } from '@/components/common'
+import { useBasicLayout } from '@/hooks/useBasicLayout'
+import { useIconRender } from '@/hooks/useIconRender'
+import { t } from '@/locales'
+import { copyToClip } from '@/utils/copy'
+import { NButton, NButtonGroup, NDropdown, NPopover, NSpace, useMessage } from 'naive-ui'
+import { computed, ref, watch } from 'vue'
 import AvatarComponent from './Avatar.vue'
 import TextComponent from './Text.vue'
 
@@ -41,13 +41,9 @@ const { iconRender } = useIconRender()
 const message = useMessage()
 
 const textRef = ref<HTMLElement>()
-
 const asRawText = ref(props.inversion)
-
 const messageRef = ref<HTMLElement>()
-
-const indexRef = ref<number>(0)
-indexRef.value = props.responseCount ?? 0
+const indexRef = ref<number>(props.responseCount ?? 0)
 
 const url_openai_token = 'https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them'
 
@@ -78,14 +74,14 @@ const options = computed(() => {
 
 function handleSelect(key: 'copyText' | 'delete' | 'toggleRenderType') {
   switch (key) {
-    case 'copyText':
-      handleCopy()
-      return
-    case 'toggleRenderType':
-      asRawText.value = !asRawText.value
-      return
-    case 'delete':
-      emit('delete')
+  case 'copyText':
+    handleCopy()
+    return
+  case 'toggleRenderType':
+    asRawText.value = !asRawText.value
+    return
+  case 'delete':
+    emit('delete')
   }
 }
 
@@ -98,17 +94,23 @@ async function handleCopy() {
   try {
     await copyToClip(props.text || '')
     message.success('复制成功')
-  }
-  catch {
+  } catch {
     message.error('复制失败')
   }
 }
 
 async function handlePreviousResponse(next: number) {
-  if (indexRef.value + next < 1 || indexRef.value + next > props.responseCount!)
+  if (indexRef.value + next < 1 || indexRef.value + next > props.responseCount!) {
     return
+  }
   indexRef.value += next
   emit('responseHistory', indexRef.value - 1)
+}
+
+if (props.responseCount) {
+  watch(() => props.responseCount, (newVal) => {
+    indexRef.value = newVal!
+  })
 }
 </script>
 
@@ -134,20 +136,44 @@ async function handlePreviousResponse(next: number) {
           <NButtonGroup v-if="!inversion && responseCount && responseCount > 1">
             <NButton
               style="cursor: pointer;"
-              size="tiny" quaternary
+              size="tiny"
+              quaternary
               :disabled="indexRef === 1"
               @click="handlePreviousResponse(-1)"
             >
-              <svg stroke="currentColor" fill="none" stroke-width="1.5" viewBox="-3 3 24 24" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><polyline points="15 18 9 12 15 6" /></svg>
+              <svg
+                stroke="currentColor"
+                fill="none"
+                stroke-width="1.5"
+                viewBox="-3 3 24 24"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="h-3 w-3"
+                height="1em"
+                width="1em"
+                xmlns="http://www.w3.org/2000/svg"
+              ><polyline points="15 18 9 12 15 6" /></svg>
             </NButton>
             <span class="text-xs text-[#b4bbc4]"> {{ indexRef }} / {{ responseCount }}</span>
             <NButton
               style="cursor: pointer;"
-              size="tiny" quaternary
+              size="tiny"
+              quaternary
               :disabled="indexRef === responseCount"
               @click="handlePreviousResponse(1)"
             >
-              <svg stroke="currentColor" fill="none" stroke-width="1.5" viewBox="3 3 24 24" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><polyline points="9 18 15 12 9 6" /></svg>
+              <svg
+                stroke="currentColor"
+                fill="none"
+                stroke-width="1.5"
+                viewBox="3 3 24 24"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="h-3 w-3"
+                height="1em"
+                width="1em"
+                xmlns="http://www.w3.org/2000/svg"
+              ><polyline points="9 18 15 12 9 6" /></svg>
             </NButton>
           </NButtonGroup>
           <template v-if="usage">
@@ -181,7 +207,7 @@ async function handlePreviousResponse(next: number) {
           :inversion="inversion"
           :error="error"
           :text="text"
-					:images="images"
+          :images="images"
           :loading="loading"
           :as-raw-text="asRawText"
         />

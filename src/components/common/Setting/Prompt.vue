@@ -1,15 +1,15 @@
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
-import { NButton, NInput, NModal, NSpace, useMessage } from 'naive-ui'
+import { RoomAPI } from '@/api'
 import { t } from '@/locales'
-import { fetchUpdateChatRoomPrompt } from '@/api'
 import { useChatStore } from '@/store'
+import { NButton, NInput, NModal, NSpace, useMessage } from 'naive-ui'
+import { computed, ref } from 'vue'
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emit>()
 
 const chatStore = useChatStore()
-const currentChatHistory = computed(() => chatStore.getChatHistoryByCurrentActive)
+const currentChatHistory = computed(() => chatStore.getActiveChatRoom)
 const ms = useMessage()
 const testing = ref(false)
 const title = `Prompt For [${currentChatHistory.value?.title}]`
@@ -33,16 +33,16 @@ const show = computed({
 })
 
 async function handleSaveChatRoomPrompt() {
-  if (!currentChatHistory.value || !currentChatHistory.value)
+  if (!currentChatHistory.value || !currentChatHistory.value) {
     return
+  }
 
   testing.value = true
   try {
-    const { message } = await fetchUpdateChatRoomPrompt(currentChatHistory.value.prompt ?? '', +props.roomId) as { status: string; message: string }
+    const { message } = await RoomAPI.updateChatRoomPrompt(currentChatHistory.value.prompt ?? '', +props.roomId) as { status: string; message: string }
     ms.success(message)
     show.value = false
-  }
-  catch (error: any) {
+  } catch (error: any) {
     ms.error(error.message)
   }
   testing.value = false
@@ -51,16 +51,21 @@ async function handleSaveChatRoomPrompt() {
 
 <template>
   <NModal
-    v-model:show="show" :auto-focus="false" class="custom-card" preset="card" :style="{ width: '600px' }" :title="title" size="huge"
+    v-model:show="show"
+    :auto-focus="false"
+    class="custom-card"
+    preset="card"
+    :style="{ width: '600px' }"
+    :title="title"
+    size="huge"
     :bordered="false"
   >
-    <!-- <template #header-extra>
-      噢!
-    </template> -->
     <NInput
-      :value="currentChatHistory && currentChatHistory.prompt"
+      :value="currentChatHistory?.prompt || ''"
       type="textarea"
-      :autosize="{ minRows: 4, maxRows: 10 }" placeholder="Prompt for this room, If empty will use Settings ->  Advanced -> Role" @input="(val) => { if (currentChatHistory) currentChatHistory.prompt = val }"
+      :autosize="{ minRows: 4, maxRows: 10 }"
+      placeholder="Prompt for this room, If empty will use Settings ->  Advanced -> Role"
+      @input="(val) => { if (currentChatHistory) currentChatHistory.prompt = val }"
     />
     <template #footer>
       <NSpace justify="end">
