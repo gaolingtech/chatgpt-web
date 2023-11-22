@@ -70,8 +70,10 @@ dataSources.value.forEach((item, index) => {
   }
 })
 
-async function handleChatCompletionResponse(chatUuid: number, message: string, options: Chat.ConversationRequest, regenerate?: boolean) {
+async function handleChatCompletionResponse(chatUuid: number, message: string, options: Chat.ConversationRequest, message_index_to_regenerate: undefined | number) {
   let lastText = ''
+
+  const index = message_index_to_regenerate ?? dataSources.value.length - 1
 
   const handlePartialResponse = ({ event: { target: { responseText } } }: AxiosProgressEvent) => {
     // Always process the final line
@@ -95,7 +97,7 @@ async function handleChatCompletionResponse(chatUuid: number, message: string, o
 
       updateChatPartial(
         +uuid,
-        dataSources.value.length - 1,
+        index,
         {
           text: lastText + (data.text ?? ''),
         },
@@ -122,16 +124,16 @@ async function handleChatCompletionResponse(chatUuid: number, message: string, o
       prompt: message,
       images: images.value,
       signal: controller.signal,
-      regenerate,
+      regenerate: message_index_to_regenerate !== undefined,
       onDownloadProgress: handlePartialResponse,
     })
-    updateChatPartial(+uuid, dataSources.value.length - 1, { loading: false })
+    updateChatPartial(+uuid, index, { loading: false })
   }
 
   await fetchChatAPIOnce()
 }
 
-async function handleImageGenerationResponse(chatUuid: number, message: string, options: Chat.ConversationRequest, regenerate?: boolean) {
+async function handleImageGenerationResponse(chatUuid: number, message: string, options: Chat.ConversationRequest, message_index_to_regenerate: undefined | number) {
   const response = await ChatAPI.processChat({
     options,
     roomId: +uuid,
@@ -139,34 +141,37 @@ async function handleImageGenerationResponse(chatUuid: number, message: string, 
     prompt: message,
     images: images.value,
     signal: controller.signal,
-    regenerate,
+    regenerate: message_index_to_regenerate !== undefined,
   })
 
   const imageGenerationResponse: Chat.ImageGenerationResponse = response.data as Chat.ImageGenerationResponse
 
   lastChatInfo = imageGenerationResponse
 
-  updateChatPartial(+uuid, dataSources.value.length - 1, {
-    dateTime: new Date().toLocaleString(),
-    text: '',
-    images: imageGenerationResponse.data.map(o => o.url),
-    inversion: false,
-    error: false,
-    loading: true,
-    conversationOptions: {
-      conversationId: imageGenerationResponse.conversationId,
-      parentMessageId: undefined
-    },
-    requestOptions: {
-      prompt: message,
-      options: { ...options }
-    },
-    usage: undefined,
-  })
+  const index = message_index_to_regenerate || dataSources.value.length - 1
 
-  await scrollToBottomIfAtBottom()
+  updateChatPartial(
+    +uuid,
+    index,
+    {
+      dateTime: new Date().toLocaleString(),
+      text: '',
+      images: imageGenerationResponse.data.map(o => o.url),
+      inversion: false,
+      error: false,
+      loading: false,
+      conversationOptions: {
+        conversationId: imageGenerationResponse.conversationId,
+        parentMessageId: undefined
+      },
+      requestOptions: {
+        prompt: message,
+        options: { ...options }
+      },
+      usage: undefined,
+    })
 
-  updateChatPartial(+uuid, dataSources.value.length - 1, { loading: false })
+  return scrollToBottomIfAtBottom()
 }
 
 async function handleSubmit() {
@@ -225,9 +230,9 @@ async function handleSubmit() {
 
   try {
     if (usingImageGeneration.value) {
-      return handleImageGenerationResponse(chatUuid, message, options)
+      return handleImageGenerationResponse(chatUuid, message, options, undefined)
     } else {
-      return handleChatCompletionResponse(chatUuid, message, options)
+      return handleChatCompletionResponse(chatUuid, message, options, undefined)
     }
   } catch (error: any) {
     console.warn({ error })
@@ -378,9 +383,9 @@ async function handleRegenerate(index: number) {
     // await fetchChatAPIOnce()
 
     if (usingImageGeneration.value) {
-      return handleImageGenerationResponse(chatUuid, message, options, true)
+      return handleImageGenerationResponse(chatUuid, message, options, index)
     } else {
-      return handleChatCompletionResponse(chatUuid, message, options, true)
+      return handleChatCompletionResponse(chatUuid, message, options, index)
     }
   } catch (error: any) {
     if (error.message === 'canceled') {

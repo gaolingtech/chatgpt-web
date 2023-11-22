@@ -134,7 +134,7 @@ export const useChatStore = defineStore('chat-store', {
       this.recordState()
     },
 
-    async addHistory(history: Chat.ChatRoom, chatData: Chat.Chat[] = []) {
+    async addHistory(history: Chat.ChatRoom, chatData: Chat.ChatMessage[] = []) {
       await RoomAPI.createChatRoom(history.title, history.uuid)
       this.chatRooms.unshift(history)
       this.chat.unshift({
@@ -213,7 +213,7 @@ export const useChatStore = defineStore('chat-store', {
       return null
     },
 
-    async addChatByUuid(uuid: number, chat: Chat.Chat) {
+    async addChatByUuid(uuid: number, chat: Chat.ChatMessage) {
       if (!uuid || uuid === 0) {
         if (this.chatRooms.length === 0) {
           const uuid = Date.now()
@@ -253,7 +253,7 @@ export const useChatStore = defineStore('chat-store', {
       }
     },
 
-    updateChatByUuid(uuid: number, index: number, chat: Chat.Chat) {
+    updateChatByUuid(uuid: number, index: number, chat: Chat.ChatMessage) {
       if (!uuid || uuid === 0) {
         if (this.chat.length) {
           chat.uuid = this.chat[0].data[index].uuid
@@ -271,7 +271,7 @@ export const useChatStore = defineStore('chat-store', {
       }
     },
 
-    updateChatSomeByUuid(uuid: number, index: number, chat: Partial<Chat.Chat>) {
+    updateChatSomeByUuid(uuid: number, index: number, chat: Partial<Chat.ChatMessage>) {
       if (!uuid || uuid === 0) {
         if (this.chat.length) {
           chat.uuid = this.chat[0].data[index].uuid

@@ -1,7 +1,7 @@
 declare namespace Chat {
   import { ChatModel } from "@/components/common/Setting/model"
 
-  interface Chat {
+  interface ChatMessage {
     uuid?: number
     dateTime: string
     text: string
@@ -36,7 +36,7 @@ declare namespace Chat {
     active: number | null
     usingContext: boolean;
     chatRooms: ChatRoom[]
-    chat: { uuid: number; data: Chat[] }[]
+    chat: { uuid: number; data: ChatMessage[] }[]
   }
 
   interface ConversationRequest {
