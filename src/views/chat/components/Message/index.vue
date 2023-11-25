@@ -17,6 +17,7 @@ interface Props {
   error?: boolean
   loading?: boolean
   responseCount?: number
+	disableRegenerate?: boolean
   usage?: {
     completion_tokens: number
     prompt_tokens: number
@@ -213,7 +214,7 @@ if (props.responseCount) {
         />
         <div class="flex flex-col">
           <button
-            v-if="!inversion"
+            v-if="!inversion && !disableRegenerate"
             class="mb-2 transition text-neutral-300 hover:text-neutral-800 dark:hover:text-neutral-300"
             @click="handleRegenerate"
           >

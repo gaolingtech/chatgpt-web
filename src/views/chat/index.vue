@@ -57,6 +57,8 @@ const usingImageGeneration = computed(() => activeChatRoom?.value?.usingImageGen
 const conversationList = computed(() => chatMessages.value.filter(item => (!item.inversion && !!item.conversationOptions)))
 const currentChatModel = computed(() => nowSelectChatModel.value ?? activeChatRoom.value?.chatModel)
 
+const isKnowledgeBaseChat = computed(() => !!chatStore.getActiveChatRoom?.knowledgeBaseId)
+
 let loadingMsg: MessageReactive
 let allMsg: MessageReactive
 let prevScrollTop: number
@@ -704,7 +706,7 @@ onUnmounted(() => {
                   :usage="item && item.usage || undefined"
                   :error="item.error"
                   :loading="item.loading"
-                  :disable-regenerate="chatStore.getActiveChatRoom.knowledgeBaseId"
+                  :disable-regenerate="isKnowledgeBaseChat"
                   @regenerate="handleRegenerate(index)"
                   @delete="handleDelete(index)"
                   @response-history="(ev) => onResponseHistory(index, ev)"
