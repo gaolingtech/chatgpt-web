@@ -1,5 +1,5 @@
 <script setup lang='ts'>
-import { ChatAPI, fetchUploadImage } from '@/api'
+import { ChatAPI, fetchUploadImage, KnowledgeBaseAPI } from '@/api'
 import { HoverButton, SvgIcon } from '@/components/common'
 import type { ChatModel } from '@/components/common/Setting/model'
 import { useBasicLayout } from '@/hooks/useBasicLayout'
@@ -48,13 +48,13 @@ const inputRef = ref<Ref | null>(null)
 const firstLoading = ref<boolean>(false)
 const nowSelectChatModel = ref<ChatModel | null>(null)
 
-const dataSources = computed(() => chatStore.getChatByUuid(+uuid))
+const chatMessages = computed(() => chatStore.getChatByUuid(+uuid))
 const activeChatRoom = computed(() => chatStore.getActiveChatRoom)
 
 const usingContext = computed(() => activeChatRoom?.value?.usingContext ?? true)
 const usingImageGeneration = computed(() => activeChatRoom?.value?.usingImageGeneration || false)
 
-const conversationList = computed(() => dataSources.value.filter(item => (!item.inversion && !!item.conversationOptions)))
+const conversationList = computed(() => chatMessages.value.filter(item => (!item.inversion && !!item.conversationOptions)))
 const currentChatModel = computed(() => nowSelectChatModel.value ?? activeChatRoom.value?.chatModel)
 
 let loadingMsg: MessageReactive
@@ -64,16 +64,16 @@ let prevScrollTop: number
 const { promptList: promptTemplate } = storeToRefs<any>(usePromptStore())
 
 // 未知原因刷新页面，loading 状态不会重置，手动重置
-dataSources.value.forEach((item, index) => {
+chatMessages.value.forEach((item, index) => {
   if (item.loading) {
     updateChatPartial(+uuid, index, { loading: false })
   }
 })
 
-async function handleChatCompletionResponse(chatUuid: number, message: string, options: Chat.ConversationRequest, message_index_to_regenerate: undefined | number) {
+async function requestChatCompletion(chatUuid: number, message: string, options: Chat.ConversationRequest, message_index_to_regenerate: undefined | number) {
   let lastText = ''
 
-  const index = message_index_to_regenerate ?? dataSources.value.length - 1
+  const index = message_index_to_regenerate ?? chatMessages.value.length - 1
 
   const handlePartialResponse = ({ event: { target: { responseText } } }: AxiosProgressEvent) => {
     // Always process the final line
@@ -133,7 +133,7 @@ async function handleChatCompletionResponse(chatUuid: number, message: string, o
   await fetchChatAPIOnce()
 }
 
-async function handleImageGenerationResponse(chatUuid: number, message: string, options: Chat.ConversationRequest, message_index_to_regenerate: undefined | number) {
+async function requestImageGeneration(chatUuid: number, message: string, options: Chat.ConversationRequest, message_index_to_regenerate: undefined | number) {
   const response = await ChatAPI.processChat({
     options,
     roomId: +uuid,
@@ -148,7 +148,7 @@ async function handleImageGenerationResponse(chatUuid: number, message: string, 
 
   lastChatInfo = imageGenerationResponse
 
-  const index = message_index_to_regenerate || dataSources.value.length - 1
+  const index = message_index_to_regenerate || chatMessages.value.length - 1
 
   updateChatPartial(
     +uuid,
@@ -169,6 +169,24 @@ async function handleImageGenerationResponse(chatUuid: number, message: string, 
         options: { ...options }
       },
       usage: undefined,
+    })
+
+  return scrollToBottomIfAtBottom()
+}
+
+async function requestKnowledgeBase(roomId: string, prompt: string) {
+  const { text } = (await KnowledgeBaseAPI.askToKnowledgeBase(roomId, prompt)).data
+  const index = chatMessages.value.length - 1
+
+  updateChatPartial(
+    +uuid,
+    index,
+    {
+      dateTime: new Date().toLocaleString(),
+      text,
+      inversion: false,
+      error: false,
+      loading: false,
     })
 
   return scrollToBottomIfAtBottom()
@@ -229,11 +247,15 @@ async function handleSubmit() {
   await scrollToBottom()
 
   try {
-    if (usingImageGeneration.value) {
-      return handleImageGenerationResponse(chatUuid, message, options, undefined)
-    } else {
-      return handleChatCompletionResponse(chatUuid, message, options, undefined)
+    if (chatStore.getActiveChatRoom) {
+      return requestKnowledgeBase(uuid, message)
     }
+
+    if (usingImageGeneration.value) {
+      return requestImageGeneration(chatUuid, message, options, undefined)
+    }
+
+    return requestChatCompletion(chatUuid, message, options, undefined)
   } catch (error: any) {
     console.warn({ error })
     const errorMessage = error?.message ?? t('common.wrong')
@@ -241,7 +263,7 @@ async function handleSubmit() {
     if (error.message === 'canceled') {
       updateChatPartial(
         +uuid,
-        dataSources.value.length - 1,
+        chatMessages.value.length - 1,
         {
           loading: false,
         },
@@ -250,12 +272,12 @@ async function handleSubmit() {
       return
     }
 
-    const currentChat = getChatByUuidAndIndex(+uuid, dataSources.value.length - 1)
+    const currentChat = getChatByUuidAndIndex(+uuid, chatMessages.value.length - 1)
 
     if (currentChat?.text && currentChat.text !== '') {
       updateChatPartial(
         +uuid,
-        dataSources.value.length - 1,
+        chatMessages.value.length - 1,
         {
           text: `${currentChat.text}\n[${errorMessage}]`,
           error: false,
@@ -267,7 +289,7 @@ async function handleSubmit() {
 
     updateChat(
       +uuid,
-      dataSources.value.length - 1,
+      chatMessages.value.length - 1,
       {
         dateTime: new Date().toLocaleString(),
         text: errorMessage,
@@ -292,8 +314,8 @@ async function handleRegenerate(index: number) {
 
   controller = new AbortController()
 
-  const { requestOptions } = dataSources.value[index]
-  const responseCount = (dataSources.value[index].responseCount || 1) + 1
+  const { requestOptions } = chatMessages.value[index]
+  const responseCount = (chatMessages.value[index].responseCount || 1) + 1
 
   // let message = prompt.value
   let message = requestOptions?.prompt ?? ''
@@ -304,7 +326,7 @@ async function handleRegenerate(index: number) {
   }
 
   loading.value = true
-  const chatUuid = dataSources.value[index].uuid!
+  const chatUuid = chatMessages.value[index].uuid!
 
   updateChat(
     +uuid,
@@ -322,70 +344,10 @@ async function handleRegenerate(index: number) {
   )
 
   try {
-    // let lastText = ''
-    // const fetchChatAPIOnce = async () => {
-    //   await fetchChatAPIProcess({
-    //     roomId: +uuid,
-    //     uuid: chatUuid || Date.now(),
-    //     regenerate: true,
-    //     prompt: message,
-    //     options,
-    //     signal: controller.signal,
-    //     onDownloadProgress: ({ event }) => {
-    //       const xhr = event.target
-    //       const { responseText } = xhr
-    //       // Always process the final line
-    //       const lastIndex = responseText.lastIndexOf('\n', responseText.length - 2)
-    //       let chunk = responseText
-    //       if (lastIndex !== -1) {
-    //         chunk = responseText.substring(lastIndex)
-    //       }
-    //       try {
-    //         const data = JSON.parse(chunk)
-    //         lastChatInfo = data
-    //         const usage = (data.detail && data.detail.usage)
-    //           ? {
-    //             completion_tokens: data.detail.usage.completion_tokens || null,
-    //             prompt_tokens: data.detail.usage.prompt_tokens || null,
-    //             total_tokens: data.detail.usage.total_tokens || null,
-    //             estimated: data.detail.usage.estimated || null,
-    //           }
-    //           : undefined
-    //         updateChat(
-    //           +uuid,
-    //           index,
-    //           {
-    //             dateTime: new Date().toLocaleString(),
-    //             text: lastText + (data.text ?? ''),
-    //             inversion: false,
-    //             responseCount,
-    //             error: false,
-    //             loading: true,
-    //             conversationOptions: { conversationId: data.conversationId, parentMessageId: data.id },
-    //             requestOptions: { prompt: message, options: { ...options } },
-    //             usage,
-    //           },
-    //         )
-    //
-    //         if (openLongReply && data.detail && data.detail.choices.length > 0 && data.detail.choices[0].finish_reason === 'length') {
-    //           options.parentMessageId = data.id
-    //           lastText = data.text
-    //           message = ''
-    //           return fetchChatAPIOnce()
-    //         }
-    //       } catch (error) {
-    //         //
-    //       }
-    //     },
-    //   })
-    //   updateChatPartial(+uuid, index, { loading: false })
-    // }
-    // await fetchChatAPIOnce()
-
     if (usingImageGeneration.value) {
-      return handleImageGenerationResponse(chatUuid, message, options, index)
+      return requestImageGeneration(chatUuid, message, options, index)
     } else {
-      return handleChatCompletionResponse(chatUuid, message, options, index)
+      return requestChatCompletion(chatUuid, message, options, index)
     }
   } catch (error: any) {
     if (error.message === 'canceled') {
@@ -431,7 +393,7 @@ async function onResponseHistory(index: number, historyIndex: number) {
     },
   )
 
-  const chat = (await ChatAPI.getHistoricalResponses(+uuid, dataSources.value[index].uuid || Date.now(), historyIndex)).data
+  const chat = (await ChatAPI.getHistoricalResponses(+uuid, chatMessages.value[index].uuid || Date.now(), historyIndex)).data
 
   updateChat(
     +uuid,
@@ -567,20 +529,19 @@ async function loadMoreMessage(event: any) {
 }
 
 const handleLoadMoreMessage = debounce(loadMoreMessage, 300)
-const handleSyncChat
-  = debounce(() => {
-    // 直接刷 极小概率不请求
-    chatStore.syncChat({ uuid: Number(uuid) } as Chat.ChatRoom, undefined, () => {
-      firstLoading.value = false
-      const scrollRef = document.querySelector('#scrollRef')
-      if (scrollRef) {
-        nextTick(() => scrollRef.scrollTop = scrollRef.scrollHeight)
-      }
-      if (inputRef.value && !isMobile.value) {
-        inputRef.value?.focus()
-      }
-    })
-  }, 200)
+const handleSyncChat = debounce(() => {
+  // 直接刷 极小概率不请求
+  chatStore.syncChat({ uuid: Number(uuid) } as Chat.ChatRoom, undefined, () => {
+    firstLoading.value = false
+    const scrollRef = document.querySelector('#scrollRef')
+    if (scrollRef) {
+      nextTick(() => scrollRef.scrollTop = scrollRef.scrollHeight)
+    }
+    if (inputRef.value && !isMobile.value) {
+      inputRef.value?.focus()
+    }
+  })
+}, 200)
 
 async function handleScroll(event: any) {
   const scrollTop = event.target.scrollTop
@@ -725,7 +686,7 @@ onUnmounted(() => {
           :class="[isMobile ? 'p-2' : 'p-4']"
         >
           <NSpin :show="firstLoading">
-            <template v-if="!dataSources.length">
+            <template v-if="!chatMessages.length">
               <div class="flex items-center justify-center mt-4 text-center text-neutral-300">
                 <SvgIcon icon="ri:bubble-chart-fill" class="mr-2 text-3xl" />
                 <span>Aha~</span>
@@ -734,7 +695,7 @@ onUnmounted(() => {
             <template v-else>
               <div>
                 <Message
-                  v-for="(item, index) of dataSources"
+                  v-for="(item, index) of chatMessages"
                   :key="index"
                   :date-time="item.dateTime"
                   :text="item.text"
@@ -744,6 +705,7 @@ onUnmounted(() => {
                   :usage="item && item.usage || undefined"
                   :error="item.error"
                   :loading="item.loading"
+                  :disable-regenerate="chatStore.getActiveChatRoom.knowledgeBaseId"
                   @regenerate="handleRegenerate(index)"
                   @delete="handleDelete(index)"
                   @response-history="(ev) => onResponseHistory(index, ev)"

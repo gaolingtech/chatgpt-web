@@ -40,7 +40,11 @@ export function fetchVerifyAdmin<T>(token: string) {
 export function fetchLogin<T = any>(username: string, password: string, token?: string) {
   return post<T>({
     url: '/user-login',
-    data: { username, password, token },
+    data: {
+      username,
+      password,
+      token
+    },
   })
 }
 
@@ -54,21 +58,32 @@ export function fetchSendResetMail<T = any>(username: string) {
 export function fetchResetPassword<T = any>(username: string, password: string, sign: string) {
   return post<T>({
     url: '/user-reset-password',
-    data: { username, password, sign },
+    data: {
+      username,
+      password,
+      sign
+    },
   })
 }
 
 export function fetchRegister<T = any>(username: string, password: string) {
   return post<T>({
     url: '/user-register',
-    data: { username, password },
+    data: {
+      username,
+      password
+    },
   })
 }
 
 export function fetchUpdateUserInfo<T = any>(name: string, avatar: string, description: string) {
   return post<T>({
     url: '/user-info',
-    data: { name, avatar, description },
+    data: {
+      name,
+      avatar,
+      description
+    },
   })
 }
 
@@ -82,7 +97,10 @@ export function fetchUpdateUserChatModel<T = any>(chatModel: ChatModel) {
 export function fetchGetUsers<T = any>(page: number, size: number) {
   return get<T>({
     url: '/users',
-    data: { page, size },
+    data: {
+      page,
+      size
+    },
   })
 }
 
@@ -95,7 +113,10 @@ export function fetchGetUser2FA<T = any>() {
 export function fetchVerifyUser2FA<T = any>(secretKey: string, token: string) {
   return post<T>({
     url: '/user-2fa',
-    data: { secretKey, token },
+    data: {
+      secretKey,
+      token
+    },
   })
 }
 
@@ -116,14 +137,23 @@ export function fetchDisableUser2FAByAdmin<T = any>(userId: string) {
 export function fetchUpdateUserStatus<T = any>(userId: string, status: Status) {
   return post<T>({
     url: '/user-status',
-    data: { userId, status },
+    data: {
+      userId,
+      status
+    },
   })
 }
 
 export function fetchUpdateUser<T = any>(userInfo: UserInfo) {
   return post<T>({
     url: '/user-edit',
-    data: { userId: userInfo._id, roles: userInfo.roles, email: userInfo.email, password: userInfo.password, remark: userInfo.remark },
+    data: {
+      userId: userInfo._id,
+      roles: userInfo.roles,
+      email: userInfo.email,
+      password: userInfo.password,
+      remark: userInfo.remark
+    },
   })
 }
 
@@ -158,7 +188,10 @@ export function fetchUpdateAudit<T = any>(audit: AuditConfig) {
 export function fetchTestAudit<T = any>(text: string, audit: AuditConfig) {
   return post<T>({
     url: '/audit-test',
-    data: { audit, text },
+    data: {
+      audit,
+      text
+    },
   })
 }
 
@@ -179,21 +212,30 @@ export function fetchUpdateBaseSetting<T = any>(config: ConfigState) {
 export function fetchUserStatistics<T = any>(start: number, end: number) {
   return post<T>({
     url: '/statistics/by-day',
-    data: { start, end },
+    data: {
+      start,
+      end
+    },
   })
 }
 
 export function fetchGetKeys<T = any>(page: number, size: number) {
   return get<T>({
     url: '/setting-keys',
-    data: { page, size },
+    data: {
+      page,
+      size
+    },
   })
 }
 
 export function fetchUpdateApiKeyStatus<T = any>(id: string, status: Status) {
   return post<T>({
     url: '/setting-key-status',
-    data: { id, status },
+    data: {
+      id,
+      status
+    },
   })
 }
 
@@ -219,3 +261,4 @@ export function fetchUploadImage(file: File) {
 
 export { RoomAPI } from './room'
 export { ChatAPI } from './chat'
+export { KnowledgeBaseAPI } from './knowledge-base'

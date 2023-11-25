@@ -18,8 +18,9 @@ const loadingRoom = ref(false)
 const dataSources = computed(() => chatStore.chatRooms)
 
 onMounted(async () => {
-  if (authStore.session == null || !authStore.session.auth || authStore.token)
+  if (!authStore.session || !authStore.session.auth || authStore.token) {
     await handleSyncChatRoom()
+  }
 })
 
 async function handleSyncChatRoom() {
@@ -31,24 +32,27 @@ async function handleSyncChatRoom() {
       const uuid = chatStore.active
       chatStore.syncChat({ uuid } as Chat.ChatRoom, undefined, () => {
         const scrollRef = document.querySelector('#scrollRef')
-        if (scrollRef)
+        if (scrollRef) {
           nextTick(() => scrollRef.scrollTop = scrollRef.scrollHeight)
+        }
       })
     }
   })
 }
 
 async function handleSelect({ uuid }: Chat.ChatRoom) {
-  if (isActive(uuid))
+  if (isActive(uuid)) {
     return
+  }
 
   // 这里不需要 不然每次切换都rename
   // if (chatStore.active)
   //   chatStore.updateHistory(chatStore.active, { isEdit: false })
   await chatStore.setActive(uuid)
 
-  if (isMobile.value)
+  if (isMobile.value) {
     appStore.setSiderCollapsed(true)
+  }
 }
 
 function handleEdit({ uuid }: Chat.ChatRoom, isEdit: boolean, event?: MouseEvent) {
@@ -59,16 +63,18 @@ function handleEdit({ uuid }: Chat.ChatRoom, isEdit: boolean, event?: MouseEvent
 function handleDelete(index: number, event?: MouseEvent | TouchEvent) {
   event?.stopPropagation()
   chatStore.deleteHistory(index)
-  if (isMobile.value)
+  if (isMobile.value) {
     appStore.setSiderCollapsed(true)
+  }
 }
 
 const handleDeleteDebounce = debounce(handleDelete, 600)
 
 function handleEnter({ uuid }: Chat.ChatRoom, isEdit: boolean, event: KeyboardEvent) {
   event?.stopPropagation()
-  if (event.key === 'Enter')
+  if (event.key === 'Enter') {
     chatStore.updateHistory(uuid, { isEdit })
+  }
 }
 
 function isActive(uuid: number) {
@@ -99,7 +105,8 @@ function isActive(uuid: number) {
               <div class="relative flex-1 overflow-hidden break-all text-ellipsis whitespace-nowrap">
                 <NInput
                   v-if="item.isEdit"
-                  v-model:value="item.title" size="tiny"
+                  v-model:value="item.title"
+                  size="tiny"
                   @keypress="handleEnter(item, false, $event)"
                 />
                 <span v-else>{{ item.title }}</span>

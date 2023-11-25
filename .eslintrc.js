@@ -45,6 +45,7 @@ module.exports = {
     ],
     "key-spacing": "error",
 
+    "vue/no-v-model-argument": "off",
     "vue/multi-word-component-names": "off",
     "vue/html-indent": ["error", 2],
     "vue/object-curly-spacing": ["error", "always"],

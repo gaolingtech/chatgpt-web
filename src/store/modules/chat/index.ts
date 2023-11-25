@@ -195,7 +195,9 @@ export const useChatStore = defineStore('chat-store', {
     },
 
     async setActive(uuid: number) {
-      this.active = uuid
+      console.log('setactive')
+      console.log(uuid)
+      this.$state.active = uuid
       return await this.reloadRoute(uuid)
     },
 

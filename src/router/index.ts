@@ -1,3 +1,4 @@
+import SidebarLayout from "@/views/SidebarLayout.vue";
 import type { App } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHashHistory } from 'vue-router'
@@ -8,14 +9,43 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Root',
-    component: ChatLayout,
     redirect: '/chat',
+    component: SidebarLayout,
     children: [
       {
-        path: '/chat/:uuid?',
-        name: 'Chat',
-        component: () => import('@/views/chat/index.vue'),
+        path: 'chat',
+        component: ChatLayout,
+        children: [
+          {
+            path: ':uuid?',
+            name: 'Chat',
+            component: () => import('@/views/chat/index.vue'),
+          },
+          // {
+          //   path: 'knowledge-base/:uuid?',
+          //   name: 'Chat',
+          //   component: () => import('@/views/chat/index.vue'),
+          // },
+        ]
       },
+      {
+        path: 'knowledge-base',
+        redirect: '/knowledge-base/list',
+        children: [
+          {
+            path: 'list',
+            component: () => import('@/views/knowledge-base/index.vue')
+          },
+          {
+            path: 'create',
+            component: () => import('@/views/knowledge-base/index.vue')
+          },
+          {
+            path: ':id',
+            component: () => import('@/views/knowledge-base/detail.vue')
+          }
+        ]
+      }
     ],
   },
 
@@ -41,7 +71,10 @@ const routes: RouteRecordRaw[] = [
 export const router = createRouter({
   history: createWebHashHistory(),
   routes,
-  scrollBehavior: () => ({ left: 0, top: 0 }),
+  scrollBehavior: () => ({
+    left: 0,
+    top: 0
+  }),
 })
 
 setupPageGuard(router)

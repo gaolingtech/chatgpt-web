@@ -30,6 +30,8 @@ declare namespace Chat {
 		usingContext: boolean
 		usingImageGeneration: boolean
     chatModel?: ChatModel
+
+		knowledgeBaseId?: string
   }
 
   interface ChatState {
@@ -65,5 +67,9 @@ declare namespace Chat {
 		created: number
 		data: { url: string }[]
 		detail: {}
+	}
+
+	interface KnowledgeBaseAskingResponse extends Pick<ConversationResponse, 'id' | 'text'> {
+
 	}
 }

@@ -1,16 +1,17 @@
 import { get, post } from "@/utils/request";
 
 export const RoomAPI = {
-  getChatRooms<T = any>() {
+  getChatRooms<T = any>(data?: { knowledgeBaseId: string }) {
     return get<T>({
       url: '/room/list',
+      data
     })
   },
 
-  createChatRoom<T = any>(title: string, roomId: number) {
+  createChatRoom<T = any>(title: string, roomId: number, knowledgeBaseId?: string) {
     return post<T>({
       url: '/room/create',
-      data: { title, roomId },
+      data: { title, roomId, knowledgeBaseId },
     })
   },
 
