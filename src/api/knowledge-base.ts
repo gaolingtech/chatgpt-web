@@ -16,7 +16,13 @@ export const KnowledgeBaseAPI = {
 
   getKnowledgeBase(id: string) {
     return get({
-      url: `/knowledge-base/get/${id}`
+      url: `/knowledge-base/get/${id}/info`
+    })
+  },
+
+  getKnowledgeBaseFiles(id: string) {
+    return get({
+      url: `/knowledge-base/get/${id}/files`
     })
   },
 

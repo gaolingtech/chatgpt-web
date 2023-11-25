@@ -10,16 +10,33 @@ export interface KnowledgeBase {
 	introduction: string
 }
 
+export interface OpenFileInfo {
+	object: string
+	id: string
+	purpose: string
+	filename: string
+	bytes: number
+	created_at: number
+	status: string
+	status_details: any
+}
+
 export const useKnowledgeBaseStore = defineStore('knowledge-base', {
   state: (): {
 		knowledgeBases: KnowledgeBase[],
-		currentKnowledgeBase?: KnowledgeBase
-		currentKnowLedgeBaseChatRooms: Chat.ChatRoom[]
+		currentKnowledgeBase: {
+			baseInfo?: KnowledgeBase
+			chatRooms: Chat.ChatRoom[]
+			files: OpenFileInfo[]
+		}
 	} => {
     return {
       knowledgeBases: <KnowledgeBase[]>[],
-      currentKnowledgeBase: undefined,
-      currentKnowLedgeBaseChatRooms: []
+      currentKnowledgeBase: {
+        baseInfo: undefined,
+        chatRooms: [],
+        files: []
+      },
     }
   },
 
@@ -32,10 +49,14 @@ export const useKnowledgeBaseStore = defineStore('knowledge-base', {
       return Promise.all([
         KnowledgeBaseAPI
           .getKnowledgeBase(id as string)
-          .then(r => this.$state.currentKnowledgeBase = r.data),
+          .then(r => this.$state.currentKnowledgeBase.baseInfo = r.data),
 
         RoomAPI.getChatRooms({ knowledgeBaseId: id })
-          .then(r => this.$state.currentKnowLedgeBaseChatRooms = r.data)
+          .then(r => this.$state.currentKnowledgeBase.chatRooms = r.data),
+
+        KnowledgeBaseAPI
+          .getKnowledgeBaseFiles(id as string)
+          .then(r => this.$state.currentKnowledgeBase.files = r.data),
       ])
     },
 
@@ -47,7 +68,7 @@ export const useKnowledgeBaseStore = defineStore('knowledge-base', {
 
     clearState() {
       console.log('clear')
-      this.$state.currentKnowledgeBase = undefined
+      this.$state.currentKnowledgeBase.baseInfo = undefined
     }
   }
 })
