@@ -60,6 +60,14 @@ export const useKnowledgeBaseStore = defineStore('knowledge-base', {
       ])
     },
 
+    refreshCurrent() {
+      if (!this.currentKnowledgeBase.baseInfo) {
+        return
+      }
+
+      return this.viewKnowledgeBase(this.currentKnowledgeBase.baseInfo._id)
+    },
+
     async fetchKnowledgeBases() {
       return KnowledgeBaseAPI
         .listKnowledgeBases()

@@ -48,7 +48,7 @@
           <div class="flex flex-col justify-start gap-2 text-sm">
             <div v-for="(item, index) of store.currentKnowledgeBase.files" :key="index">
               <div
-                class="relative items-center gap-3 px-3 py-3 break-all border rounded-md cursor-pointer hover:bg-neutral-100 group dark:border-neutral-800 dark:hover:bg-[#24272e]"
+                class="relative items-center gap-3 px-3 py-3 break-all border rounded-md hover:bg-neutral-100 group dark:border-neutral-800 dark:hover:bg-[#24272e]"
               >
                 <SvgIcon icon="bx:file" class="text-3xl mb-2" />
                 <div class="flex flex-col gap-2">
@@ -68,8 +68,8 @@
               </div>
             </div>
 
-            <n-upload>
-              <n-button type="primary">
+            <n-upload :custom-request="handleUpload" :disabled="uploading">
+              <n-button type="primary" :loading="uploading">
                 上传新文件
               </n-button>
             </n-upload>
@@ -81,14 +81,16 @@
 </template>
 
 <script setup lang="ts">
-import { RoomAPI } from "@/api";
+import { KnowledgeBaseAPI, RoomAPI } from "@/api";
 import { SvgIcon } from "@/components/common/SvgIcon/index";
 import { useChatStore } from "@/store";
 import { useKnowledgeBaseStore } from "@/store/modules/knowledge-base";
 import dayjs from "dayjs";
-import { NScrollbar, useMessage } from 'naive-ui'
-import { onMounted, onUnmounted } from "vue";
+import { NScrollbar, useMessage, UploadCustomRequestOptions  } from 'naive-ui'
+import { onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+
+const uploading = ref(false)
 
 const route = useRoute();
 const router = useRouter();
@@ -111,6 +113,23 @@ const createRoomForKnowledgeBase = async () => {
   )
 
   await chatStore.setActive(roomId)
+}
+
+const handleUpload = (props: UploadCustomRequestOptions) => {
+  if (!store.currentKnowledgeBase.baseInfo) {
+    return message.error('知识库不存在')
+  }
+
+  uploading.value = true
+  KnowledgeBaseAPI.feedForKnowledgeBase(props.file.file!, store.currentKnowledgeBase.baseInfo._id)
+    .then(() => store.refreshCurrent())
+    .catch(e => {
+      message.error(e)
+    })
+    .finally(() =>{
+      uploading.value = false
+    })
+
 }
 
 onMounted(() => {

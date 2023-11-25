@@ -25,7 +25,6 @@ function http<T = any>(
   const successHandler = (res: AxiosResponse<Response<T>>) => {
     const authStore = useAuthStore()
 
-    console.log(res)
     if (res.data.status === 'Success' || typeof res.data === 'string') {
       return res.data
     }

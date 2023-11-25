@@ -247,18 +247,17 @@ async function handleSubmit() {
   await scrollToBottom()
 
   try {
-    if (chatStore.getActiveChatRoom) {
-      return requestKnowledgeBase(uuid, message)
+    if (chatStore.getActiveChatRoom?.knowledgeBaseId) {
+      return await requestKnowledgeBase(uuid, message)
     }
 
     if (usingImageGeneration.value) {
-      return requestImageGeneration(chatUuid, message, options, undefined)
+      return await requestImageGeneration(chatUuid, message, options, undefined)
     }
 
-    return requestChatCompletion(chatUuid, message, options, undefined)
+    return await requestChatCompletion(chatUuid, message, options, undefined)
   } catch (error: any) {
-    console.warn({ error })
-    const errorMessage = error?.message ?? t('common.wrong')
+    const errorMessage = error?.message ?? error ?? t('common.wrong')
 
     if (error.message === 'canceled') {
       updateChatPartial(

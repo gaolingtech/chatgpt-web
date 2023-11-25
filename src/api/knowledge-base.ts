@@ -34,5 +34,18 @@ export const KnowledgeBaseAPI = {
         prompt,
       }
     })
+  },
+  feedForKnowledgeBase(file: File, id: string) {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('knowledgeBaseId', id)
+
+    return post({
+      url: '/knowledge-base/feed',
+      data: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
   }
 }
